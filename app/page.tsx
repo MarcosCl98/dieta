@@ -399,7 +399,7 @@ export default function HomePage() {
                         className="w-12 h-12 rounded-full overflow-hidden"
                         dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[id] }}
                       />
-                      <span className="text-xs text-gray-600 dark:text-gray-300">{AVATAR_LABELS[id]}</span>
+                      
                     </button>
                   ))}
                 </div>
@@ -536,20 +536,20 @@ export default function HomePage() {
             </p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-white">
-                Edad (anos)
-                <input type="number" value={planForm.age} onChange={(e) => setPlanForm((p) => ({ ...p, age: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+                Edad
+                <input type="number" min="1" value={planForm.age || ''} onChange={(e) => setPlanForm((p) => ({ ...p, age: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
               </label>
               <label className="text-xs text-white">
                 Estatura (cm)
-                <input type="number" value={planForm.heightCm} onChange={(e) => setPlanForm((p) => ({ ...p, heightCm: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+                <input type="number" min="1" value={planForm.heightCm || ''} onChange={(e) => setPlanForm((p) => ({ ...p, heightCm: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
               </label>
               <label className="text-xs text-white">
                 Peso actual (kg)
-                <input type="number" value={planForm.weightKg} onChange={(e) => setPlanForm((p) => ({ ...p, weightKg: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+                <input type="number" min="1" value={planForm.weightKg || ''} onChange={(e) => setPlanForm((p) => ({ ...p, weightKg: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
               </label>
               <label className="text-xs text-white">
                 Dias de entreno/semana
-                <input type="number" value={planForm.trainingDays} onChange={(e) => setPlanForm((p) => ({ ...p, trainingDays: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+                <input type="number" min="0" max="7" value={planForm.trainingDays === 0 ? '' : planForm.trainingDays} onChange={(e) => setPlanForm((p) => ({ ...p, trainingDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
               </label>
             </div>
             <div className="grid grid-cols-3 gap-2">
