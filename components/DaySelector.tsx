@@ -20,7 +20,7 @@ const DAY_OPTIONS: { value: DayType; label: string; icon: React.ReactNode; color
   },
   {
     value: 'cardio',
-    label: 'Cardio',
+    label: 'Carrera',
     icon: <Wind size={16} />,
     color: 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-200',
     active: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300',
@@ -52,7 +52,7 @@ export function DaySelector({ dayType, schedule, onDayType, onSchedule }: DaySel
         ))}
       </div>
 
-      {dayType !== 'descanso' && (
+      {dayType === 'fuerza' && (
         <div className="grid grid-cols-2 gap-2">
           {[
             { value: 'tarde' as ScheduleType, label: 'Entreno 15h' },
