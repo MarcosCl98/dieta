@@ -145,7 +145,18 @@ export default function HomePage() {
     fetch(`/api/selections/log?userId=${userId}&date=${date}`)
       .then(r => r.json())
       .then(data => {
-        if (data.log) { setDayType(data.log.day_type as DayType); setSchedule(data.log.schedule as ScheduleType); setCheatNote(data.log.cheat_note ?? '') }
+        if (data.log) {
+          setDayType(data.log.day_type as DayType)
+          setSchedule(data.log.schedule as ScheduleType)
+          setCheatNote(data.log.cheat_note ?? '')
+          // Restore completedDates for today from the loaded log
+          if (data.log.completed) {
+            setCompletedDates(prev => Array.from(new Set([...prev, date])))
+          }
+          if (data.log.cheat_note) {
+            setCheatDates(prev => Array.from(new Set([...prev, date])))
+          }
+        }
         if (data.selections?.length) {
           const map: Record<string, Selection> = {}
           for (const s of data.selections) map[s.meal_id] = s
@@ -202,8 +213,32 @@ export default function HomePage() {
     setCheatDates(prev => { const s = new Set(prev); hasNote ? s.add(date) : s.delete(date); return Array.from(s) })
   }
 
-  function handleDayType(dt: DayType) { setDayType(dt); setSelections({}); saveDayLog(dt, schedule, false, cheatNote); updateCompletedDatesForToday(false) }
-  function handleSchedule(sc: ScheduleType) { setSchedule(sc); setSelections({}); saveDayLog(dayType, sc, false, cheatNote); updateCompletedDatesForToday(false) }
+  async function reloadSelectionsForDay(dt: DayType, sc: ScheduleType) {
+    if (!ready || !userId) return
+    setSelections({})
+    try {
+      const r = await fetch(`/api/selections/log?userId=${userId}&date=${date}`)
+      const data = await r.json()
+      if (data.log?.day_type === dt && data.log?.schedule === (dt === 'descanso' || dt === 'cardio' ? 'main' : sc)) {
+        if (data.selections?.length) {
+          const map: Record<string, Selection> = {}
+          for (const s of data.selections) map[s.meal_id] = s
+          setSelections(map)
+        }
+      }
+    } catch { /* silent */ }
+  }
+
+  function handleDayType(dt: DayType) {
+    setDayType(dt)
+    saveDayLog(dt, schedule, false, cheatNote)
+    reloadSelectionsForDay(dt, schedule)
+  }
+  function handleSchedule(sc: ScheduleType) {
+    setSchedule(sc)
+    saveDayLog(dayType, sc, false, cheatNote)
+    reloadSelectionsForDay(dayType, sc)
+  }
 
   async function handleSelect(mealId: string, option: Option) {
     if (!ready || !userId) return
@@ -256,7 +291,7 @@ export default function HomePage() {
     if (!profileName.trim()) return setAuthError('Pon un nombre al perfil')
     if (!/^\d{4}$/.test(profilePin)) return setAuthError('El PIN debe tener 4 números')
     createProfile({ name: profileName, pin: profilePin, avatar: selectedAvatar })
-    setProfileName(''); setProfilePin(''); setLoginPin(''); setProfileScreen('select')
+    setProfileName(''); setProfilePin(''); setLoginPin('')
   }
 
   function handleLogin() {
