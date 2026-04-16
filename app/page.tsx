@@ -6,7 +6,7 @@ import { MacroBar } from '@/components/MacroBar'
 import { MealCard } from '@/components/MealCard'
 import { DaySelector } from '@/components/DaySelector'
 import { Timeline } from '@/components/Timeline'
-import { AVATAR_OPTIONS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
+import { AVATAR_OPTIONS, AVATAR_SVGS, AVATAR_LABELS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
 import { useProfiles } from '@/lib/useProfiles'
 import { RefreshCw } from 'lucide-react'
 
@@ -76,6 +76,7 @@ export default function HomePage() {
   const [editingPin, setEditingPin] = useState('')
   const [editingAvatar, setEditingAvatar] = useState(AVATAR_OPTIONS[0])
   const [showCreateProfile, setShowCreateProfile] = useState(false)
+  const [profileScreen, setProfileScreen] = useState<'select' | 'login' | 'create'>('select')
   const [screenVisible, setScreenVisible] = useState(false)
 
   const date = todayISO()
@@ -85,7 +86,7 @@ export default function HomePage() {
     setScreenVisible(false)
     const timer = setTimeout(() => setScreenVisible(true), 20)
     return () => clearTimeout(timer)
-  }, [activeProfile?.id, loginProfileId, showCreateProfile])
+  }, [activeProfile?.id, loginProfileId, profileScreen])
 
   const scheduleKey = dayType === 'descanso' || dayType === 'cardio' ? 'main' : schedule
   const dayData = DIET_DATA[dayType][scheduleKey]
@@ -338,138 +339,181 @@ export default function HomePage() {
     )
   }
 
-  if (!activeProfile) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className={`max-w-lg mx-auto px-4 py-8 space-y-4 transition-all duration-300 ease-out ${
-          screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        }`}>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Seleccion de perfil</h1>
 
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">¿Quien eres?</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {profiles.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setLoginProfileId(p.id)}
-                  className={`rounded-xl border p-3 text-left transition-all ${
-                    loginProfileId === p.id
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
-                  }`}
-                >
-                  <div className="text-2xl mb-1">{p.avatar}</div>
-                  <div className="text-xs font-medium text-gray-900 dark:text-white truncate">{p.name}</div>
-                </button>
-              ))}
+  // Profile screen state machine: 'select' | 'login' | 'create'
+
+  if (!activeProfile) {
+    const selectedProfile = profiles.find((p) => p.id === loginProfileId)
+
+    // ── CREATE screen ──────────────────────────────────────────────
+    if (profileScreen === 'create') {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+          <div className="max-w-lg mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-4">
+            <button
+              onClick={() => { setProfileScreen('select'); setAuthError(null) }}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-start"
+            >
+              ← Volver
+            </button>
+
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Nuevo perfil</h1>
+
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">Nombre</label>
+                <input
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  placeholder="Tu nombre"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">PIN (4 dígitos)</label>
+                <input
+                  value={profilePin}
+                  onChange={(e) => setProfilePin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="1234"
+                  type="password"
+                  inputMode="numeric"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Elige tu avatar</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {AVATAR_OPTIONS.map((id) => (
+                    <button
+                      key={id}
+                      onClick={() => setSelectedAvatar(id)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
+                        selectedAvatar === id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
+                      }`}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full overflow-hidden"
+                        dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[id] }}
+                      />
+                      <span className="text-xs text-gray-600 dark:text-gray-300">{AVATAR_LABELS[id]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {authError && (
+                <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>
+              )}
+
               <button
-                onClick={() => {
-                  setShowCreateProfile(true)
-                  setEditingProfileId(null)
-                  setAuthError(null)
-                }}
-                className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-3 text-center bg-gray-50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"
+                onClick={handleCreateProfile}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                <div className="text-2xl mb-1 text-gray-500">+</div>
-                <div className="text-xs font-medium text-gray-600 dark:text-gray-300">Añadir</div>
+                Crear perfil y entrar
               </button>
             </div>
           </div>
+        </div>
+      )
+    }
 
-          <div className={`transition-all duration-300 ease-out ${
-            loginProfileId ? 'max-h-40 opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1 overflow-hidden'
-          }`}>
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Introduce tu PIN</h2>
+    // ── LOGIN screen ───────────────────────────────────────────────
+    if (profileScreen === 'login' && selectedProfile) {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+          <div className="max-w-lg mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-4">
+            <button
+              onClick={() => { setProfileScreen('select'); setLoginPin(''); setAuthError(null) }}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-start"
+            >
+              ← Volver
+            </button>
+
+            <div className="flex flex-col items-center gap-3 mt-4">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden shadow-md"
+                dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[selectedProfile.avatar] ?? '' }}
+              />
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Hola, {selectedProfile.name}
+              </h1>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block text-center">Introduce tu PIN</label>
               <input
                 value={loginPin}
                 onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="PIN (4 numeros)"
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+                placeholder="• • • •"
+                type="password"
+                inputMode="numeric"
+                autoFocus
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-3 text-sm text-gray-900 dark:text-white text-center text-lg tracking-widest"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
               />
-              <button onClick={handleLogin} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+
+              {authError && (
+                <p className="text-xs text-red-600 dark:text-red-400 text-center">{authError}</p>
+              )}
+
+              <button
+                onClick={handleLogin}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
                 Acceder
               </button>
             </div>
           </div>
+        </div>
+      )
+    }
 
-          <div className={`transition-all duration-300 ease-out ${
-            showCreateProfile || editingProfileId ? 'max-h-[520px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1 overflow-hidden'
-          }`}>
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editingProfileId ? 'Editar perfil' : 'Crear perfil'}</h2>
-            <input
-              value={editingProfileId ? editingName : profileName}
-              onChange={(e) => (editingProfileId ? setEditingName(e.target.value) : setProfileName(e.target.value))}
-              placeholder="Nombre visible"
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-            />
-            <input
-              value={editingProfileId ? editingPin : profilePin}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, '').slice(0, 4)
-                if (editingProfileId) setEditingPin(v)
-                else setProfilePin(v)
+    // ── SELECT screen (default) ────────────────────────────────────
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+        <div className="max-w-lg mx-auto w-full px-4 py-8 flex-1 flex flex-col gap-5">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">¿Quién eres?</h1>
+
+          <div className="grid grid-cols-2 gap-3">
+            {profiles.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setLoginProfileId(p.id)
+                  setLoginPin('')
+                  setAuthError(null)
+                  setProfileScreen('login')
+                }}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 transition-all"
+              >
+                <div
+                  className="w-16 h-16 rounded-full overflow-hidden"
+                  dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[p.avatar] ?? '' }}
+                />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</span>
+              </button>
+            ))}
+
+            <button
+              onClick={() => {
+                setProfileName('')
+                setProfilePin('')
+                setSelectedAvatar(AVATAR_OPTIONS[0])
+                setAuthError(null)
+                setProfileScreen('create')
               }}
-              placeholder="PIN numerico de 4 digitos"
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-            />
-            <div className="flex flex-wrap gap-2">
-              {AVATAR_OPTIONS.map((avatar) => (
-                <button
-                  key={avatar}
-                  onClick={() => (editingProfileId ? setEditingAvatar(avatar) : setSelectedAvatar(avatar))}
-                  className={`w-9 h-9 rounded-full border text-lg ${
-                    (editingProfileId ? editingAvatar : selectedAvatar) === avatar
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  {avatar}
-                </button>
-              ))}
-            </div>
-            {editingProfileId ? (
-              <div className="flex gap-2">
-                <button onClick={handleSaveProfileEdit} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-                  Guardar cambios
-                </button>
-                <button onClick={() => setEditingProfileId(null)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                  Cancelar
-                </button>
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors"
+            >
+              <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                <span className="text-3xl text-gray-400 dark:text-gray-500">+</span>
               </div>
-            ) : (
-              <div className="flex gap-2">
-                <button onClick={handleCreateProfile} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-                  Crear y entrar
-                </button>
-                <button onClick={() => setShowCreateProfile(false)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                  Cancelar
-                </button>
-              </div>
-            )}
-            {profiles.length > 0 && (
-              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Gestion rapida de perfiles</p>
-                {profiles.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-700 dark:text-gray-200">{p.avatar} {p.name}</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => beginEditProfile(p.id)} className="text-blue-500">Editar</button>
-                      <button onClick={() => handleDeleteProfile(p.id)} className="text-red-500">Eliminar</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            </div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Añadir perfil</span>
+            </button>
           </div>
-          {authError && (
-            <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 leading-relaxed">
-              {authError}
-            </div>
-          )}
         </div>
       </div>
     )
