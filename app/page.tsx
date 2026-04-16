@@ -7,6 +7,7 @@ import { MealCard } from '@/components/MealCard'
 import { DaySelector } from '@/components/DaySelector'
 import { Timeline } from '@/components/Timeline'
 import { AVATAR_OPTIONS, AVATAR_SVGS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
+import { scaleDayData } from '@/lib/scale'
 import { useProfiles } from '@/lib/useProfiles'
 import { RefreshCw, ChevronLeft, Scale } from 'lucide-react'
 
@@ -120,7 +121,10 @@ export default function HomePage() {
   const month = monthISO()
   const monday = lastMondayISO()
   const scheduleKey = (dayType === 'descanso' || dayType === 'cardio') ? 'main' : schedule
-  const dayData = DIET_DATA[dayType][scheduleKey]
+  const rawDayData = DIET_DATA[dayType][scheduleKey]
+  const dayData = activeProfile?.plan
+    ? scaleDayData(rawDayData, activeProfile.plan.targetKcal)
+    : rawDayData
   const expectedMeals = dayData.meals.length
   const selectedMeals = Object.keys(selections).length
   const isTodayCompleted = selectedMeals === expectedMeals && expectedMeals > 0
