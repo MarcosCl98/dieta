@@ -224,31 +224,32 @@ export default function HomePage() {
     setCheatDates(prev => { const s = new Set(prev); hasNote ? s.add(date) : s.delete(date); return Array.from(s) })
   }
 
-  async function reloadSelectionsForDay(dt: DayType, sc: ScheduleType) {
-    if (!ready || !userId) return
-    setSelections({})
-    try {
-      const r = await fetch(`/api/selections/log?userId=${userId}&date=${date}`)
-      const data = await r.json()
-      if (data.log?.day_type === dt && data.log?.schedule === (dt === 'descanso' || dt === 'cardio' ? 'main' : sc)) {
-        if (data.selections?.length) {
-          const map: Record<string, Selection> = {}
-          for (const s of data.selections) map[s.meal_id] = s
-          setSelections(map)
-        }
-      }
-    } catch { /* silent */ }
-  }
-
   function handleDayType(dt: DayType) {
     setDayType(dt)
+    setSelections({})
+    updateCompletedDatesForToday(false)
     saveDayLog(dt, schedule, false, cheatNote)
-    reloadSelectionsForDay(dt, schedule)
+    // Also clear meal_selections in DB for today so no ghost data
+    if (ready && userId) {
+      fetch('/api/selections/meal/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, date }),
+      }).catch(() => {})
+    }
   }
   function handleSchedule(sc: ScheduleType) {
     setSchedule(sc)
+    setSelections({})
+    updateCompletedDatesForToday(false)
     saveDayLog(dayType, sc, false, cheatNote)
-    reloadSelectionsForDay(dayType, sc)
+    if (ready && userId) {
+      fetch('/api/selections/meal/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, date }),
+      }).catch(() => {})
+    }
   }
 
   async function handleSelect(mealId: string, option: Option) {
@@ -805,9 +806,63 @@ export default function HomePage() {
         <DaySelector dayType={dayType} schedule={schedule} onDayType={handleDayType} onSchedule={handleSchedule} />
         <MacroBar current={current} target={computedTarget} />
 
-        <div className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2">
-          {activeProfile.plan.goal === 'gain' ? 'Ganancia muscular' : activeProfile.plan.goal === 'loss' ? 'Pérdida de grasa' : 'Mantenimiento'} · TDEE {activeProfile.plan.tdee} kcal · Meta {activeProfile.plan.targetKcal} kcal
-        </div>
+        {/* Status indicator — only show once at least one meal is selected */}
+        {selectedMeals > 0 && (() => {
+          const kcalPct = current.kcal / computedTarget.kcal
+          const protPct = current.prot / computedTarget.prot
+          const allSelected = selectedMeals === expectedMeals
+
+          // Determine kcal status
+          const kcalOver = kcalPct > 1.10
+          const kcalOk = kcalPct >= 0.88 && kcalPct <= 1.10
+          const kcalLow = kcalPct < 0.88
+
+          // Determine protein status (stricter — protein matters most)
+          const protOver = protPct > 1.15
+          const protOk = protPct >= 0.85 && protPct <= 1.15
+          const protLow = protPct < 0.85
+
+          // Build messages
+          const msgs: { text: string; color: string }[] = []
+
+          if (allSelected) {
+            if (kcalOver) msgs.push({ text: `Te pasas ${current.kcal - computedTarget.kcal} kcal del objetivo — considera opciones más ligeras`, color: 'text-red-600 dark:text-red-400' })
+            else if (kcalLow) msgs.push({ text: `Te quedan ${computedTarget.kcal - current.kcal} kcal por cubrir — busca opciones más calóricas o añade algo extra`, color: 'text-blue-600 dark:text-blue-400' })
+            else msgs.push({ text: `Kcal en rango correcto ✓`, color: 'text-emerald-600 dark:text-emerald-400' })
+
+            if (protLow) msgs.push({ text: `Proteína baja (${current.prot}g de ${computedTarget.prot}g) — elige opciones con más proteína o añade un yogur / batido`, color: 'text-orange-600 dark:text-orange-400' })
+            else if (protOk) msgs.push({ text: `Proteína en rango ✓`, color: 'text-emerald-600 dark:text-emerald-400' })
+          } else {
+            // Partial — estimate based on remaining meals
+            const remaining = expectedMeals - selectedMeals
+            const avgKcalPerMeal = selectedMeals > 0 ? current.kcal / selectedMeals : 0
+            const projectedKcal = current.kcal + avgKcalPerMeal * remaining
+            const projectedProt = current.prot + (current.prot / selectedMeals) * remaining
+
+            if (avgKcalPerMeal > 0) {
+              if (projectedKcal > computedTarget.kcal * 1.12)
+                msgs.push({ text: `Ritmo alto — si sigues así superarás el objetivo calórico`, color: 'text-amber-600 dark:text-amber-400' })
+              else if (projectedKcal < computedTarget.kcal * 0.85)
+                msgs.push({ text: `Ritmo bajo — vas a quedarte por debajo del objetivo, elige opciones más completas`, color: 'text-blue-600 dark:text-blue-400' })
+              else
+                msgs.push({ text: `Vas bien encaminado`, color: 'text-emerald-600 dark:text-emerald-400' })
+
+              if (projectedProt < computedTarget.prot * 0.85)
+                msgs.push({ text: `La proteína va justa — prioriza opciones con más proteína en las tomas que quedan`, color: 'text-orange-600 dark:text-orange-400' })
+            }
+          }
+
+          if (msgs.length === 0) return null
+
+          return (
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-3 space-y-1.5">
+              {msgs.map((m, i) => (
+                <p key={i} className={`text-xs leading-relaxed ${m.color}`}>{m.text}</p>
+              ))}
+              <p className="text-[11px] text-gray-400 pt-0.5">Meta: {computedTarget.kcal} kcal · {computedTarget.prot}g prot · {activeProfile.plan.goal === 'gain' ? 'ganancia muscular' : activeProfile.plan.goal === 'loss' ? 'pérdida de grasa' : 'mantenimiento'}</p>
+            </div>
+          )
+        })()}
 
         {errorMsg && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">{errorMsg}</div>}
         {dayData.dayNote && <div className="text-sm text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-4 py-3 leading-relaxed">{dayData.dayNote}</div>}
