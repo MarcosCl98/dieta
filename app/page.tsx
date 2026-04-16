@@ -23,7 +23,7 @@ interface Selection {
 }
 
 export default function HomePage() {
-  const userId = useUserId()
+  const { userId, ready } = useUserId()
   const [dayType, setDayType] = useState<DayType>('fuerza')
   const [schedule, setSchedule] = useState<ScheduleType>('tarde')
   const [selections, setSelections] = useState<Record<string, Selection>>({})
@@ -36,9 +36,9 @@ export default function HomePage() {
   const scheduleKey = (dayType === 'descanso' || dayType === 'cardio') ? 'main' : schedule
   const dayData = DIET_DATA[dayType][scheduleKey]
 
-  // Load saved state for today
+  // Load saved state for today — wait until userId is ready from localStorage
   useEffect(() => {
-    if (!userId) return
+    if (!ready || !userId) return
     setLoading(true)
     fetch(`/api/selections/log?userId=${userId}&date=${date}`)
       .then((r) => r.json())
@@ -57,19 +57,19 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [userId, date])
+  }, [ready, userId, date])
 
   // Save day type/schedule when changed
   const saveDayLog = useCallback(
     async (dt: DayType, sc: ScheduleType) => {
-      if (!userId) return
+      if (!ready || !userId) return
       await fetch('/api/selections/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, date, dayType: dt, schedule: sc }),
       })
     },
-    [userId, date]
+    [ready, userId, date]
   )
 
   function handleDayType(dt: DayType) {
@@ -85,7 +85,7 @@ export default function HomePage() {
   }
 
   async function handleSelect(mealId: string, option: Option) {
-    if (!userId) return
+    if (!ready || !userId) return
     setSaving(true)
     const sel: Selection = {
       meal_id: mealId,
@@ -106,7 +106,7 @@ export default function HomePage() {
   }
 
   async function handleDeselect(mealId: string) {
-    if (!userId) return
+    if (!ready || !userId) return
     setSaving(true)
     setSelections((prev) => {
       const next = { ...prev }
