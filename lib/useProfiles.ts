@@ -67,6 +67,25 @@ export function useProfiles() {
     persist(nextProfiles, activeProfileId)
   }
 
+  function updateProfile(profileId: string, payload: { name?: string; avatar?: string; pin?: string }) {
+    const nextProfiles = profiles.map((p) => {
+      if (p.id !== profileId) return p
+      return {
+        ...p,
+        name: payload.name !== undefined ? payload.name.trim() : p.name,
+        avatar: payload.avatar ?? p.avatar,
+        pin: payload.pin ?? p.pin,
+      }
+    })
+    persist(nextProfiles, activeProfileId)
+  }
+
+  function deleteProfile(profileId: string) {
+    const nextProfiles = profiles.filter((p) => p.id !== profileId)
+    const nextActiveId = activeProfileId === profileId ? null : activeProfileId
+    persist(nextProfiles, nextActiveId)
+  }
+
   const activeProfile = useMemo(
     () => profiles.find((p) => p.id === activeProfileId) ?? null,
     [profiles, activeProfileId]
@@ -80,6 +99,8 @@ export function useProfiles() {
     login,
     logout,
     updatePlan,
+    updateProfile,
+    deleteProfile,
   }
 }
 

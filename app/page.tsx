@@ -53,7 +53,7 @@ const defaultPlanForm = {
 }
 
 export default function HomePage() {
-  const { ready, profiles, activeProfile, createProfile, login, logout, updatePlan } = useProfiles()
+  const { ready, profiles, activeProfile, createProfile, login, logout, updatePlan, updateProfile, deleteProfile } = useProfiles()
   const userId = activeProfile?.id ?? ''
   const [dayType, setDayType] = useState<DayType>('fuerza')
   const [schedule, setSchedule] = useState<ScheduleType>('tarde')
@@ -71,6 +71,10 @@ export default function HomePage() {
   const [loginPin, setLoginPin] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [planForm, setPlanForm] = useState(defaultPlanForm)
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [editingPin, setEditingPin] = useState('')
+  const [editingAvatar, setEditingAvatar] = useState(AVATAR_OPTIONS[0])
 
   const date = todayISO()
   const month = monthISO()
@@ -277,6 +281,31 @@ export default function HomePage() {
     updatePlan(activeProfile.id, plan)
   }
 
+  function beginEditProfile(profileId: string) {
+    const profile = profiles.find((p) => p.id === profileId)
+    if (!profile) return
+    setEditingProfileId(profile.id)
+    setEditingName(profile.name)
+    setEditingPin(profile.pin)
+    setEditingAvatar(profile.avatar)
+    setAuthError(null)
+  }
+
+  function handleSaveProfileEdit() {
+    if (!editingProfileId) return
+    if (!editingName.trim()) return setAuthError('El nombre no puede estar vacio')
+    if (!/^\d{4}$/.test(editingPin)) return setAuthError('El PIN debe tener 4 numeros')
+    updateProfile(editingProfileId, { name: editingName, pin: editingPin, avatar: editingAvatar })
+    setEditingProfileId(null)
+    setAuthError(null)
+  }
+
+  function handleDeleteProfile(profileId: string) {
+    deleteProfile(profileId)
+    if (loginProfileId === profileId) setLoginProfileId('')
+    if (editingProfileId === profileId) setEditingProfileId(null)
+  }
+
   const current = Object.values(selections).reduce(
     (acc, s) => ({
       kcal: acc.kcal + s.kcal,
@@ -305,29 +334,103 @@ export default function HomePage() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Seleccion de perfil</h1>
+
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Entrar</h2>
-            <select value={loginProfileId} onChange={(e) => setLoginProfileId(e.target.value)} className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
-              <option value="">Elige un perfil</option>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Perfiles</h2>
+            <div className="grid grid-cols-2 gap-3">
               {profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.avatar} {p.name}</option>
-              ))}
-            </select>
-            <input value={loginPin} onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="PIN (4 numeros)" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            <button onClick={handleLogin} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">Acceder</button>
-          </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Crear perfil</h2>
-            <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="Nombre" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            <input value={profilePin} onChange={(e) => setProfilePin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="PIN (4 numeros)" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            <div className="flex flex-wrap gap-2">
-              {AVATAR_OPTIONS.map((avatar) => (
-                <button key={avatar} onClick={() => setSelectedAvatar(avatar)} className={`w-9 h-9 rounded-full border text-lg ${selectedAvatar === avatar ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700'}`}>{avatar}</button>
+                <button
+                  key={p.id}
+                  onClick={() => setLoginProfileId(p.id)}
+                  className={`rounded-xl border p-3 text-left transition-all ${
+                    loginProfileId === p.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{p.avatar}</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</div>
+                </button>
               ))}
             </div>
-            <button onClick={handleCreateProfile} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Crear y entrar</button>
+            <input
+              value={loginPin}
+              onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="PIN (4 numeros)"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+            <button onClick={handleLogin} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+              Acceder
+            </button>
           </div>
-          {authError && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 leading-relaxed">{authError}</div>}
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editingProfileId ? 'Editar perfil' : 'Crear perfil'}</h2>
+            <input
+              value={editingProfileId ? editingName : profileName}
+              onChange={(e) => (editingProfileId ? setEditingName(e.target.value) : setProfileName(e.target.value))}
+              placeholder="Nombre visible"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+            <input
+              value={editingProfileId ? editingPin : profilePin}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 4)
+                if (editingProfileId) setEditingPin(v)
+                else setProfilePin(v)
+              }}
+              placeholder="PIN numerico de 4 digitos"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            />
+            <div className="flex flex-wrap gap-2">
+              {AVATAR_OPTIONS.map((avatar) => (
+                <button
+                  key={avatar}
+                  onClick={() => (editingProfileId ? setEditingAvatar(avatar) : setSelectedAvatar(avatar))}
+                  className={`w-9 h-9 rounded-full border text-lg ${
+                    (editingProfileId ? editingAvatar : selectedAvatar) === avatar
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  {avatar}
+                </button>
+              ))}
+            </div>
+            {editingProfileId ? (
+              <div className="flex gap-2">
+                <button onClick={handleSaveProfileEdit} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  Guardar cambios
+                </button>
+                <button onClick={() => setEditingProfileId(null)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleCreateProfile} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                Crear y entrar
+              </button>
+            )}
+            {profiles.length > 0 && (
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Gestion rapida de perfiles</p>
+                {profiles.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 dark:text-gray-200">{p.avatar} {p.name}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => beginEditProfile(p.id)} className="text-blue-500">Editar</button>
+                      <button onClick={() => handleDeleteProfile(p.id)} className="text-red-500">Eliminar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {authError && (
+            <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 leading-relaxed">
+              {authError}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -341,20 +444,46 @@ export default function HomePage() {
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{activeProfile.avatar} {activeProfile.name}</h1>
             <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700">Cambiar perfil</button>
           </div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Configuracion inicial</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Introduce tus datos para calcular kcal objetivo segun meta: perdida progresiva, ganancia muscular o mantenimiento.</p>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-sm space-y-4">
+            <h2 className="text-sm font-semibold text-white">Configuracion inicial</h2>
+            <p className="text-xs text-gray-200">
+              Completa tus datos para calcular tus kcal y macros objetivo segun tu meta.
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              <input type="number" value={planForm.age} onChange={(e) => setPlanForm((p) => ({ ...p, age: Number(e.target.value) || 0 }))} placeholder="Edad" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              <input type="number" value={planForm.heightCm} onChange={(e) => setPlanForm((p) => ({ ...p, heightCm: Number(e.target.value) || 0 }))} placeholder="Estatura cm" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              <input type="number" value={planForm.weightKg} onChange={(e) => setPlanForm((p) => ({ ...p, weightKg: Number(e.target.value) || 0 }))} placeholder="Peso kg" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              <input type="number" value={planForm.trainingDays} onChange={(e) => setPlanForm((p) => ({ ...p, trainingDays: Number(e.target.value) || 0 }))} placeholder="Dias entreno" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+              <label className="text-xs text-white">
+                Edad (anos)
+                <input type="number" value={planForm.age} onChange={(e) => setPlanForm((p) => ({ ...p, age: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+              </label>
+              <label className="text-xs text-white">
+                Estatura (cm)
+                <input type="number" value={planForm.heightCm} onChange={(e) => setPlanForm((p) => ({ ...p, heightCm: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+              </label>
+              <label className="text-xs text-white">
+                Peso actual (kg)
+                <input type="number" value={planForm.weightKg} onChange={(e) => setPlanForm((p) => ({ ...p, weightKg: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+              </label>
+              <label className="text-xs text-white">
+                Dias de entreno/semana
+                <input type="number" value={planForm.trainingDays} onChange={(e) => setPlanForm((p) => ({ ...p, trainingDays: Number(e.target.value) || 0 }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+              </label>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <select value={planForm.sex} onChange={(e) => setPlanForm((p) => ({ ...p, sex: e.target.value as SexType }))} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"><option value="male">Hombre</option><option value="female">Mujer</option></select>
-              <select value={planForm.activity} onChange={(e) => setPlanForm((p) => ({ ...p, activity: e.target.value as ActivityType }))} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"><option value="low">Actividad baja</option><option value="medium">Actividad media</option><option value="high">Actividad alta</option></select>
-              <select value={planForm.goal} onChange={(e) => setPlanForm((p) => ({ ...p, goal: e.target.value as GoalType }))} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"><option value="loss">Perdida progresiva</option><option value="gain">Ganancia muscular</option><option value="maintain">Mantenimiento</option></select>
+              <label className="text-xs text-white">
+                Sexo
+                <select value={planForm.sex} onChange={(e) => setPlanForm((p) => ({ ...p, sex: e.target.value as SexType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="male">Hombre</option><option value="female">Mujer</option></select>
+              </label>
+              <label className="text-xs text-white">
+                Actividad diaria
+                <select value={planForm.activity} onChange={(e) => setPlanForm((p) => ({ ...p, activity: e.target.value as ActivityType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option></select>
+              </label>
+              <label className="text-xs text-white">
+                Objetivo
+                <select value={planForm.goal} onChange={(e) => setPlanForm((p) => ({ ...p, goal: e.target.value as GoalType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="loss">Perder grasa</option><option value="gain">Ganar musculo</option><option value="maintain">Mantener</option></select>
+              </label>
             </div>
+            <p className="text-xs text-gray-300">
+              Esta configuracion define tus kcal objetivo y tus macros personalizados del perfil.
+            </p>
             <button onClick={handleSavePlan} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">Guardar objetivo y continuar</button>
           </div>
         </div>
