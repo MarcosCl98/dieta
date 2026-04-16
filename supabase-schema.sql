@@ -6,9 +6,14 @@ create table if not exists daily_log (
   date         date not null default current_date,
   day_type     text not null,   -- 'fuerza' | 'cardio' | 'descanso'
   schedule     text not null,   -- 'tarde' | 'manana' | 'main'
+  completed    boolean not null default false,
+  cheat_note   text,
   created_at   timestamptz default now(),
   unique(user_id, date)
 );
+
+alter table daily_log add column if not exists completed boolean not null default false;
+alter table daily_log add column if not exists cheat_note text;
 
 create table if not exists meal_selections (
   id           uuid primary key default gen_random_uuid(),
