@@ -6,17 +6,20 @@ import { MacroBar } from '@/components/MacroBar'
 import { MealCard } from '@/components/MealCard'
 import { DaySelector } from '@/components/DaySelector'
 import { Timeline } from '@/components/Timeline'
-import { AVATAR_OPTIONS, AVATAR_SVGS, AVATAR_LABELS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
+import { AVATAR_OPTIONS, AVATAR_SVGS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
 import { useProfiles } from '@/lib/useProfiles'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, ChevronLeft, Scale } from 'lucide-react'
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+function todayISO() { return new Date().toISOString().slice(0, 10) }
+function monthISO() { return new Date().toISOString().slice(0, 7) }
+function lastMondayISO() {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().slice(0, 10)
 }
-
-function monthISO() {
-  return new Date().toISOString().slice(0, 7)
-}
+function isMonday() { return new Date().getDay() === 1 }
 
 function buildCalendarDays() {
   const now = new Date()
@@ -26,35 +29,59 @@ function buildCalendarDays() {
   const firstWeekday = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const cells: Array<number | null> = []
-
-  for (let i = 0; i < firstWeekday; i += 1) cells.push(null)
-  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day)
-
-  return { cells }
+  for (let i = 0; i < firstWeekday; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  return cells
 }
 
 interface Selection {
-  meal_id: string
-  option_id: string
-  kcal: number
-  prot: number
-  carbs: number
-  grasa: number
+  meal_id: string; option_id: string; kcal: number; prot: number; carbs: number; grasa: number
 }
+interface WeightEntry { date: string; weight_kg: number }
 
 const defaultPlanForm = {
-  age: 30,
-  sex: 'male' as SexType,
-  heightCm: 175,
-  weightKg: 75,
-  trainingDays: 4,
-  activity: 'medium' as ActivityType,
-  goal: 'maintain' as GoalType,
+  age: 0, sex: 'male' as SexType, heightCm: 0, weightKg: 0,
+  trainingDays: 4, activity: 'medium' as ActivityType, goal: 'gain' as GoalType,
+}
+
+// Simple SVG line chart
+function WeightChart({ entries }: { entries: WeightEntry[] }) {
+  if (entries.length < 2) return (
+    <p className="text-xs text-gray-400 text-center py-4">Necesitas al menos 2 registros para ver la gráfica.</p>
+  )
+  const W = 320, H = 140, PAD = 28
+  const weights = entries.map(e => e.weight_kg)
+  const minW = Math.min(...weights) - 1
+  const maxW = Math.max(...weights) + 1
+  const cx = (i: number) => PAD + (i / (entries.length - 1)) * (W - PAD * 2)
+  const cy = (w: number) => PAD + ((maxW - w) / (maxW - minW)) * (H - PAD * 2)
+  const points = entries.map((e, i) => `${cx(i)},${cy(e.weight_kg)}`).join(' ')
+  const areaPoints = `${cx(0)},${H - PAD} ${points} ${cx(entries.length - 1)},${H - PAD}`
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 140 }}>
+      <polygon points={areaPoints} fill="rgba(59,130,246,0.12)" />
+      <polyline points={points} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+      {entries.map((e, i) => (
+        <g key={e.date}>
+          <circle cx={cx(i)} cy={cy(e.weight_kg)} r="4" fill="#3b82f6" />
+          <text x={cx(i)} y={cy(e.weight_kg) - 8} textAnchor="middle" fontSize="9" fill="#6b7280">{e.weight_kg}</text>
+          {(i === 0 || i === entries.length - 1 || entries.length <= 6) && (
+            <text x={cx(i)} y={H - 6} textAnchor="middle" fontSize="8" fill="#9ca3af">
+              {e.date.slice(5).replace('-', '/')}
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  )
 }
 
 export default function HomePage() {
   const { ready, profiles, activeProfile, createProfile, login, logout, updatePlan, updateProfile, deleteProfile } = useProfiles()
   const userId = activeProfile?.id ?? ''
+
+  // Day tracking state
   const [dayType, setDayType] = useState<DayType>('fuerza')
   const [schedule, setSchedule] = useState<ScheduleType>('tarde')
   const [selections, setSelections] = useState<Record<string, Selection>>({})
@@ -64,217 +91,172 @@ export default function HomePage() {
   const [completedDates, setCompletedDates] = useState<string[]>([])
   const [cheatDates, setCheatDates] = useState<string[]>([])
   const [cheatNote, setCheatNote] = useState('')
+
+  // Profile screens: 'select' | 'login' | 'create' | 'delete'
+  const [profileScreen, setProfileScreen] = useState<'select' | 'login' | 'create' | 'delete'>('select')
   const [profileName, setProfileName] = useState('')
   const [profilePin, setProfilePin] = useState('')
   const [selectedAvatar, setSelectedAvatar] = useState<string>(AVATAR_OPTIONS[0])
   const [loginProfileId, setLoginProfileId] = useState('')
   const [loginPin, setLoginPin] = useState('')
+  const [deleteTargetId, setDeleteTargetId] = useState('')
+  const [deletePin, setDeletePin] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
+
+  // App screens: 'main' | 'profile' (user profile/stats page)
+  const [appScreen, setAppScreen] = useState<'main' | 'profile'>('main')
+
+  // Plan form
   const [planForm, setPlanForm] = useState(defaultPlanForm)
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
-  const [editingPin, setEditingPin] = useState('')
-  const [editingAvatar, setEditingAvatar] = useState<string>(AVATAR_OPTIONS[0])
-  const [showCreateProfile, setShowCreateProfile] = useState(false)
-  const [profileScreen, setProfileScreen] = useState<'select' | 'login' | 'create'>('select')
-  const [screenVisible, setScreenVisible] = useState(false)
+  const [editingPlan, setEditingPlan] = useState(false)
+
+  // Weight tracking
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([])
+  const [weeklyWeightInput, setWeeklyWeightInput] = useState('')
+  const [showWeightPrompt, setShowWeightPrompt] = useState(false)
+  const [weightSaving, setWeightSaving] = useState(false)
 
   const date = todayISO()
   const month = monthISO()
-
-  useEffect(() => {
-    setScreenVisible(false)
-    const timer = setTimeout(() => setScreenVisible(true), 20)
-    return () => clearTimeout(timer)
-  }, [activeProfile?.id, loginProfileId, profileScreen])
-
-  const scheduleKey = dayType === 'descanso' || dayType === 'cardio' ? 'main' : schedule
+  const monday = lastMondayISO()
+  const scheduleKey = (dayType === 'descanso' || dayType === 'cardio') ? 'main' : schedule
   const dayData = DIET_DATA[dayType][scheduleKey]
   const expectedMeals = dayData.meals.length
   const selectedMeals = Object.keys(selections).length
   const isTodayCompleted = selectedMeals === expectedMeals && expectedMeals > 0
-  const { cells } = buildCalendarDays()
+  const calendarCells = buildCalendarDays()
   const weekdayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
   const computedTarget = activeProfile?.plan
-    ? {
-        kcal: activeProfile.plan.targetKcal,
-        prot: activeProfile.plan.protein,
-        carbs: activeProfile.plan.carbs,
-        grasa: activeProfile.plan.fat,
-      }
+    ? { kcal: activeProfile.plan.targetKcal, prot: activeProfile.plan.protein, carbs: activeProfile.plan.carbs, grasa: activeProfile.plan.fat }
     : dayData.macros
 
-  const saveDayLog = useCallback(
-    async (dt: DayType, sc: ScheduleType, completed = false, cheatNoteValue = '') => {
-      if (!ready || !userId) return
-      await fetch('/api/selections/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, date, dayType: dt, schedule: sc, completed, cheatNote: cheatNoteValue }),
-      })
-    },
-    [ready, userId, date]
-  )
+  // Load day data
+  const saveDayLog = useCallback(async (dt: DayType, sc: ScheduleType, completed = false, cheatNoteValue = '') => {
+    if (!ready || !userId) return
+    await fetch('/api/selections/log', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, date, dayType: dt, schedule: sc, completed, cheatNote: cheatNoteValue }),
+    })
+  }, [ready, userId, date])
 
   useEffect(() => {
     if (!ready || !userId) return
     setLoading(true)
     fetch(`/api/selections/log?userId=${userId}&date=${date}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.log) {
-          setDayType(data.log.day_type as DayType)
-          setSchedule(data.log.schedule as ScheduleType)
-          setCheatNote(data.log.cheat_note ?? '')
-        }
+      .then(r => r.json())
+      .then(data => {
+        if (data.log) { setDayType(data.log.day_type as DayType); setSchedule(data.log.schedule as ScheduleType); setCheatNote(data.log.cheat_note ?? '') }
         if (data.selections?.length) {
           const map: Record<string, Selection> = {}
           for (const s of data.selections) map[s.meal_id] = s
           setSelections(map)
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .catch(() => {}).finally(() => setLoading(false))
   }, [ready, userId, date])
 
   useEffect(() => {
     if (!ready || !userId) return
     fetch(`/api/selections/log?userId=${userId}&month=${month}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCompletedDates(data.completedDates ?? [])
-        setCheatDates(data.cheatDates ?? [])
-      })
+      .then(r => r.json())
+      .then(data => { setCompletedDates(data.completedDates ?? []); setCheatDates(data.cheatDates ?? []) })
       .catch(() => {})
   }, [ready, userId, month])
 
+  // Load weight entries
+  useEffect(() => {
+    if (!ready || !userId) return
+    fetch(`/api/weight?userId=${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        const entries: WeightEntry[] = data.entries ?? []
+        setWeightEntries(entries)
+        // Show Monday prompt if today is Monday and no entry for this Monday yet
+        if (isMonday()) {
+          const hasThisMonday = entries.some(e => e.date === monday)
+          if (!hasThisMonday) setShowWeightPrompt(true)
+        }
+      })
+      .catch(() => {})
+  }, [ready, userId, monday])
+
+  // Pre-fill plan form from active profile
+  useEffect(() => {
+    if (activeProfile?.plan) {
+      setPlanForm({
+        age: activeProfile.plan.age,
+        sex: activeProfile.plan.sex,
+        heightCm: activeProfile.plan.heightCm,
+        weightKg: activeProfile.plan.weightKg,
+        trainingDays: activeProfile.plan.trainingDays,
+        activity: activeProfile.plan.activity,
+        goal: activeProfile.plan.goal,
+      })
+    }
+  }, [activeProfile?.id])
+
   function updateCompletedDatesForToday(completed: boolean) {
-    setCompletedDates((prev) => {
-      const set = new Set(prev)
-      if (completed) set.add(date)
-      else set.delete(date)
-      return Array.from(set)
-    })
+    setCompletedDates(prev => { const s = new Set(prev); completed ? s.add(date) : s.delete(date); return Array.from(s) })
+  }
+  function updateCheatDatesForToday(hasNote: boolean) {
+    setCheatDates(prev => { const s = new Set(prev); hasNote ? s.add(date) : s.delete(date); return Array.from(s) })
   }
 
-  function updateCheatDatesForToday(hasCheatNote: boolean) {
-    setCheatDates((prev) => {
-      const set = new Set(prev)
-      if (hasCheatNote) set.add(date)
-      else set.delete(date)
-      return Array.from(set)
-    })
-  }
-
-  function handleDayType(dt: DayType) {
-    setDayType(dt)
-    setSelections({})
-    saveDayLog(dt, schedule, false, cheatNote)
-    updateCompletedDatesForToday(false)
-  }
-
-  function handleSchedule(sc: ScheduleType) {
-    setSchedule(sc)
-    setSelections({})
-    saveDayLog(dayType, sc, false, cheatNote)
-    updateCompletedDatesForToday(false)
-  }
+  function handleDayType(dt: DayType) { setDayType(dt); setSelections({}); saveDayLog(dt, schedule, false, cheatNote); updateCompletedDatesForToday(false) }
+  function handleSchedule(sc: ScheduleType) { setSchedule(sc); setSelections({}); saveDayLog(dayType, sc, false, cheatNote); updateCompletedDatesForToday(false) }
 
   async function handleSelect(mealId: string, option: Option) {
     if (!ready || !userId) return
-    setSaving(true)
-    setErrorMsg(null)
-    const sel: Selection = {
-      meal_id: mealId,
-      option_id: option.id,
-      kcal: option.kcal,
-      prot: option.prot,
-      carbs: option.carbs,
-      grasa: option.grasa,
-    }
-    const previousSelection = selections[mealId]
-    const nextSelections = { ...selections, [mealId]: sel }
-    setSelections(nextSelections)
-
+    setSaving(true); setErrorMsg(null)
+    const sel: Selection = { meal_id: mealId, option_id: option.id, kcal: option.kcal, prot: option.prot, carbs: option.carbs, grasa: option.grasa }
+    const prev = selections[mealId]
+    const next = { ...selections, [mealId]: sel }
+    setSelections(next)
     try {
-      const res = await fetch('/api/selections/meal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, date, mealId, optionId: option.id, ...sel }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? 'No se pudo guardar la selección')
-      }
-      const completed = Object.keys(nextSelections).length === expectedMeals
+      const res = await fetch('/api/selections/meal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, date, mealId, optionId: option.id, ...sel }) })
+      if (!res.ok) { const d = await res.json().catch(() => null); throw new Error(d?.error ?? 'Error al guardar') }
+      const completed = Object.keys(next).length === expectedMeals
       await saveDayLog(dayType, schedule, completed, cheatNote)
       updateCompletedDatesForToday(completed)
     } catch (err) {
-      setSelections((prev) => {
-        const next = { ...prev }
-        if (previousSelection) next[mealId] = previousSelection
-        else delete next[mealId]
-        return next
-      })
-      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido al guardar')
-    } finally {
-      setSaving(false)
-    }
+      setSelections(p => { const n = { ...p }; if (prev) n[mealId] = prev; else delete n[mealId]; return n })
+      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido')
+    } finally { setSaving(false) }
   }
 
   async function handleDeselect(mealId: string) {
     if (!ready || !userId) return
-    setSaving(true)
-    setErrorMsg(null)
-    const previousSelection = selections[mealId]
-    const nextSelections = { ...selections }
-    delete nextSelections[mealId]
-    setSelections(nextSelections)
-
+    setSaving(true); setErrorMsg(null)
+    const prev = selections[mealId]
+    const next = { ...selections }; delete next[mealId]
+    setSelections(next)
     try {
-      const res = await fetch('/api/selections/meal', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, date, mealId }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? 'No se pudo quitar la selección')
-      }
+      const res = await fetch('/api/selections/meal', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, date, mealId }) })
+      if (!res.ok) { const d = await res.json().catch(() => null); throw new Error(d?.error ?? 'Error al quitar') }
       await saveDayLog(dayType, schedule, false, cheatNote)
       updateCompletedDatesForToday(false)
     } catch (err) {
-      if (previousSelection) setSelections((prev) => ({ ...prev, [mealId]: previousSelection }))
-      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido al guardar')
-    } finally {
-      setSaving(false)
-    }
+      if (prev) setSelections(p => ({ ...p, [mealId]: prev }))
+      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido')
+    } finally { setSaving(false) }
   }
 
-  async function handleSaveCheatNote(nextCheatNote?: string) {
+  async function handleSaveCheatNote(note?: string) {
     if (!ready || !userId) return
-    setSaving(true)
-    setErrorMsg(null)
-    const value = nextCheatNote ?? cheatNote
-    try {
-      await saveDayLog(dayType, schedule, isTodayCompleted, value)
-      updateCheatDatesForToday(Boolean(value.trim()))
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido al guardar')
-    } finally {
-      setSaving(false)
-    }
+    setSaving(true); setErrorMsg(null)
+    const v = note ?? cheatNote
+    try { await saveDayLog(dayType, schedule, isTodayCompleted, v); updateCheatDatesForToday(Boolean(v.trim())) }
+    catch (err) { setErrorMsg(err instanceof Error ? err.message : 'Error') }
+    finally { setSaving(false) }
   }
 
+  // Profile handlers
   function handleCreateProfile() {
     setAuthError(null)
     if (!profileName.trim()) return setAuthError('Pon un nombre al perfil')
-    if (!/^\d{4}$/.test(profilePin)) return setAuthError('El PIN debe tener 4 numeros')
+    if (!/^\d{4}$/.test(profilePin)) return setAuthError('El PIN debe tener 4 números')
     createProfile({ name: profileName, pin: profilePin, avatar: selectedAvatar })
-    setProfileName('')
-    setProfilePin('')
-    setLoginPin('')
-    setShowCreateProfile(false)
+    setProfileName(''); setProfilePin(''); setLoginPin(''); setShowCreateProfile(false)
   }
 
   function handleLogin() {
@@ -285,374 +267,439 @@ export default function HomePage() {
     setLoginPin('')
   }
 
+  function handleDeleteProfile() {
+    setAuthError(null)
+    if (!deleteTargetId) return setAuthError('Selecciona un perfil')
+    const target = profiles.find(p => p.id === deleteTargetId)
+    if (!target) return setAuthError('Perfil no encontrado')
+    const isOwn = deletePin === target.pin
+    const isMaster = deletePin === '0000'
+    if (!isOwn && !isMaster) return setAuthError('PIN incorrecto')
+    deleteProfile(deleteTargetId)
+    setDeletePin(''); setDeleteTargetId(''); setProfileScreen('select')
+  }
+
+  // Plan handlers
   function handleSavePlan() {
     if (!activeProfile) return
     const plan = computeNutritionPlan(planForm)
     updatePlan(activeProfile.id, plan)
+    setEditingPlan(false)
   }
 
-  function beginEditProfile(profileId: string) {
-    const profile = profiles.find((p) => p.id === profileId)
-    if (!profile) return
-    setEditingProfileId(profile.id)
-    setEditingName(profile.name)
-    setEditingPin(profile.pin)
-    setEditingAvatar(profile.avatar)
-    setAuthError(null)
+  // Weight handlers
+  async function handleSaveWeight() {
+    const w = parseFloat(weeklyWeightInput)
+    if (!w || w < 30 || w > 300) return
+    setWeightSaving(true)
+    try {
+      await fetch('/api/weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, date: monday, weightKg: w }) })
+      const newEntry = { date: monday, weight_kg: w }
+      setWeightEntries(prev => {
+        const filtered = prev.filter(e => e.date !== monday)
+        return [...filtered, newEntry].sort((a, b) => a.date.localeCompare(b.date))
+      })
+      setShowWeightPrompt(false)
+      setWeeklyWeightInput('')
+      // Update plan weight too
+      if (activeProfile?.plan) updatePlan(activeProfile.id, { ...activeProfile.plan, weightKg: w })
+    } catch { /* silent */ }
+    finally { setWeightSaving(false) }
   }
 
-  function handleSaveProfileEdit() {
-    if (!editingProfileId) return
-    if (!editingName.trim()) return setAuthError('El nombre no puede estar vacio')
-    if (!/^\d{4}$/.test(editingPin)) return setAuthError('El PIN debe tener 4 numeros')
-    updateProfile(editingProfileId, { name: editingName, pin: editingPin, avatar: editingAvatar })
-    setEditingProfileId(null)
-    setAuthError(null)
-  }
-
-  function handleDeleteProfile(profileId: string) {
-    deleteProfile(profileId)
-    if (loginProfileId === profileId) setLoginProfileId('')
-    if (editingProfileId === profileId) setEditingProfileId(null)
-  }
-
-  const current = Object.values(selections).reduce(
-    (acc, s) => ({
-      kcal: acc.kcal + s.kcal,
-      prot: acc.prot + s.prot,
-      carbs: acc.carbs + s.carbs,
-      grasa: acc.grasa + s.grasa,
-    }),
-    { kcal: 0, prot: 0, carbs: 0, grasa: 0 }
+  // ── LOADING ──
+  if (!ready) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center gap-2 text-gray-400"><RefreshCw size={16} className="animate-spin" /><span className="text-sm">Preparando perfiles...</span></div>
+    </div>
   )
 
-  const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+  // ── PROFILE SELECTION SCREENS ──
+  if (!activeProfile) {
+    const selectedProfile = profiles.find(p => p.id === loginProfileId)
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex items-center gap-2 text-gray-400">
-          <RefreshCw size={16} className="animate-spin" />
-          <span className="text-sm">Preparando perfiles...</span>
+    // CREATE
+    if (profileScreen === 'create') return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <button onClick={() => { setProfileScreen('select'); setAuthError(null) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <ChevronLeft size={16} />Volver
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Nuevo perfil</h1>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">Nombre</label>
+              <input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Tu nombre" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">PIN (4 dígitos)</label>
+              <input value={profilePin} onChange={e => setProfilePin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="1234" type="password" inputMode="numeric" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Elige tu avatar</label>
+              <div className="grid grid-cols-4 gap-3">
+                {AVATAR_OPTIONS.map(id => (
+                  <button key={id} onClick={() => setSelectedAvatar(id)} className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all ${selectedAvatar === id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-200 dark:border-gray-700'}`}>
+                    <div className="w-12 h-12 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[id] }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            {authError && <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>}
+            <button onClick={handleCreateProfile} className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Crear perfil y entrar</button>
+          </div>
         </div>
       </div>
     )
-  }
 
-
-  // Profile screen state machine: 'select' | 'login' | 'create'
-
-  if (!activeProfile) {
-    const selectedProfile = profiles.find((p) => p.id === loginProfileId)
-
-    // ── CREATE screen ──────────────────────────────────────────────
-    if (profileScreen === 'create') {
-      return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-          <div className="max-w-lg mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-4">
-            <button
-              onClick={() => { setProfileScreen('select'); setAuthError(null) }}
-              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-start"
-            >
-              ← Volver
-            </button>
-
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Nuevo perfil</h1>
-
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">Nombre</label>
-                <input
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">PIN (4 dígitos)</label>
-                <input
-                  value={profilePin}
-                  onChange={(e) => setProfilePin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="1234"
-                  type="password"
-                  inputMode="numeric"
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Elige tu avatar</label>
-                <div className="grid grid-cols-4 gap-3">
-                  {AVATAR_OPTIONS.map((id) => (
-                    <button
-                      key={id}
-                      onClick={() => setSelectedAvatar(id)}
-                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
-                        selectedAvatar === id
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
-                      }`}
-                    >
-                      <div
-                        className="w-12 h-12 rounded-full overflow-hidden"
-                        dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[id] }}
-                      />
-                      
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {authError && (
-                <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>
-              )}
-
-              <button
-                onClick={handleCreateProfile}
-                className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Crear perfil y entrar
-              </button>
+    // DELETE
+    if (profileScreen === 'delete') return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <button onClick={() => { setProfileScreen('select'); setAuthError(null); setDeletePin(''); setDeleteTargetId('') }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <ChevronLeft size={16} />Volver
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Eliminar perfil</h1>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Selecciona el perfil a eliminar e introduce su PIN. El PIN <span className="font-semibold text-gray-700 dark:text-gray-300">0000</span> elimina cualquier perfil.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {profiles.map(p => (
+                <button key={p.id} onClick={() => setDeleteTargetId(p.id)} className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${deleteTargetId === p.id ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                  <div className="w-12 h-12 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[p.avatar] ?? '' }} />
+                  <span className="text-xs font-medium text-gray-800 dark:text-gray-200">{p.name}</span>
+                </button>
+              ))}
             </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">PIN del perfil (o 0000)</label>
+              <input value={deletePin} onChange={e => setDeletePin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="• • • •" type="password" inputMode="numeric" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white text-center tracking-widest" />
+            </div>
+            {authError && <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>}
+            <button onClick={handleDeleteProfile} className="w-full py-3 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Eliminar perfil</button>
           </div>
         </div>
-      )
-    }
+      </div>
+    )
 
-    // ── LOGIN screen ───────────────────────────────────────────────
-    if (profileScreen === 'login' && selectedProfile) {
-      return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-          <div className="max-w-lg mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-4">
-            <button
-              onClick={() => { setProfileScreen('select'); setLoginPin(''); setAuthError(null) }}
-              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 self-start"
-            >
-              ← Volver
-            </button>
-
-            <div className="flex flex-col items-center gap-3 mt-4">
-              <div
-                className="w-24 h-24 rounded-full overflow-hidden shadow-md"
-                dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[selectedProfile.avatar] ?? '' }}
-              />
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Hola, {selectedProfile.name}
-              </h1>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block text-center">Introduce tu PIN</label>
-              <input
-                value={loginPin}
-                onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="• • • •"
-                type="password"
-                inputMode="numeric"
-                autoFocus
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-3 text-sm text-gray-900 dark:text-white text-center text-lg tracking-widest"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
-              />
-
-              {authError && (
-                <p className="text-xs text-red-600 dark:text-red-400 text-center">{authError}</p>
-              )}
-
-              <button
-                onClick={handleLogin}
-                className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Acceder
-              </button>
-            </div>
+    // LOGIN
+    if (profileScreen === 'login' && selectedProfile) return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <button onClick={() => { setProfileScreen('select'); setLoginPin(''); setAuthError(null) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <ChevronLeft size={16} />Volver
+          </button>
+          <div className="flex flex-col items-center gap-3 mt-4">
+            <div className="w-24 h-24 rounded-full overflow-hidden shadow-md" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[selectedProfile.avatar] ?? '' }} />
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Hola, {selectedProfile.name}</h1>
+          </div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 block text-center">Introduce tu PIN</label>
+            <input value={loginPin} onChange={e => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="• • • •" type="password" inputMode="numeric" autoFocus
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-3 text-sm text-gray-900 dark:text-white text-center text-lg tracking-widest"
+              onKeyDown={e => { if (e.key === 'Enter') handleLogin() }} />
+            {authError && <p className="text-xs text-red-600 dark:text-red-400 text-center">{authError}</p>}
+            <button onClick={handleLogin} className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Acceder</button>
           </div>
         </div>
-      )
-    }
+      </div>
+    )
 
-    // ── SELECT screen (default) ────────────────────────────────────
+    // SELECT (default)
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-        <div className="max-w-lg mx-auto w-full px-4 py-8 flex-1 flex flex-col gap-5">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">¿Quién eres?</h1>
-
           <div className="grid grid-cols-2 gap-3">
-            {profiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setLoginProfileId(p.id)
-                  setLoginPin('')
-                  setAuthError(null)
-                  setProfileScreen('login')
-                }}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 transition-all"
-              >
-                <div
-                  className="w-16 h-16 rounded-full overflow-hidden"
-                  dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[p.avatar] ?? '' }}
-                />
+            {profiles.map(p => (
+              <button key={p.id} onClick={() => { setLoginProfileId(p.id); setLoginPin(''); setAuthError(null); setProfileScreen('login') }}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm hover:border-blue-300 dark:hover:border-blue-600 transition-all">
+                <div className="w-16 h-16 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[p.avatar] ?? '' }} />
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</span>
               </button>
             ))}
-
-            <button
-              onClick={() => {
-                setProfileName('')
-                setProfilePin('')
-                setSelectedAvatar(AVATAR_OPTIONS[0])
-                setAuthError(null)
-                setProfileScreen('create')
-              }}
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors"
-            >
+            <button onClick={() => { setProfileName(''); setProfilePin(''); setSelectedAvatar(AVATAR_OPTIONS[0]); setAuthError(null); setProfileScreen('create') }}
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors">
               <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <span className="text-3xl text-gray-400 dark:text-gray-500">+</span>
+                <span className="text-3xl text-gray-400">+</span>
               </div>
               <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Añadir perfil</span>
             </button>
           </div>
+          {profiles.length > 0 && (
+            <button onClick={() => { setDeleteTargetId(''); setDeletePin(''); setAuthError(null); setProfileScreen('delete') }}
+              className="text-xs text-red-500 dark:text-red-400 hover:underline mx-auto block">
+              Eliminar un perfil
+            </button>
+          )}
         </div>
       </div>
     )
   }
 
-  if (!activeProfile.plan) {
+  // ── INITIAL PLAN SETUP ──
+  if (!activeProfile.plan) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
+            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{activeProfile.name}</span>
+          </div>
+          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">Cerrar sesión</button>
+        </div>
+        <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-3xl p-5 shadow-sm space-y-4">
+          <h2 className="text-base font-semibold text-white">Configuración inicial</h2>
+          <p className="text-xs text-gray-200 leading-relaxed">Estos datos se usan para calcular tu gasto calórico, tu objetivo diario de kcal y tus macros.</p>
+          <PlanFormFields form={planForm} setForm={setPlanForm} />
+          <button onClick={handleSavePlan} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Guardar y continuar</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── LOADING DAY DATA ──
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-center gap-2 text-gray-400"><RefreshCw size={16} className="animate-spin" /><span className="text-sm">Cargando...</span></div>
+    </div>
+  )
+
+  // ── WEEKLY WEIGHT PROMPT (Monday) ──
+  if (showWeightPrompt) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="max-w-sm mx-auto px-4 w-full space-y-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 shadow-sm space-y-4 text-center">
+          <div className="flex justify-center">
+            <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+              <Scale size={28} className="text-blue-500" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">¡Lunes de pesaje!</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Súbete a la báscula y apunta tu peso de esta semana.</p>
+          </div>
+          <input
+            value={weeklyWeightInput}
+            onChange={e => setWeeklyWeightInput(e.target.value.replace(',', '.'))}
+            placeholder="Ej: 58.5"
+            type="number" step="0.1" inputMode="decimal"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-3 text-sm text-gray-900 dark:text-white text-center text-lg"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setShowWeightPrompt(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              Ahora no
+            </button>
+            <button onClick={handleSaveWeight} disabled={weightSaving || !weeklyWeightInput}
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {weightSaving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── PROFILE / USER SCREEN ──
+  if (appScreen === 'profile') {
+    const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weight_kg : null
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className={`max-w-lg mx-auto px-4 py-8 space-y-4 transition-all duration-300 ease-out ${
-          screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        }`}>
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{activeProfile.avatar} {activeProfile.name}</h1>
-            <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700">Cambiar perfil</button>
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <button onClick={() => { setAppScreen('main'); setEditingPlan(false) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <ChevronLeft size={16} />Volver
+          </button>
+
+          {/* Profile header */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden shrink-0" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{activeProfile.name}</h1>
+                {activeProfile.plan && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 mt-1">
+                    <p>{activeProfile.plan.sex === 'male' ? 'Hombre' : 'Mujer'} · {activeProfile.plan.age} años · {activeProfile.plan.heightCm} cm</p>
+                    <p>Peso registrado: {latestWeight ? `${latestWeight} kg` : `${activeProfile.plan.weightKg} kg (inicial)`}</p>
+                    <p>Objetivo: {activeProfile.plan.goal === 'gain' ? 'Ganar músculo' : activeProfile.plan.goal === 'loss' ? 'Perder grasa' : 'Mantener'}</p>
+                    <p>Meta diaria: {activeProfile.plan.targetKcal} kcal · {activeProfile.plan.protein}g prot</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={() => setEditingPlan(p => !p)} className="mt-3 text-xs text-blue-500 hover:underline">
+              {editingPlan ? 'Cancelar edición' : 'Editar datos y objetivo'}
+            </button>
           </div>
-          <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-3xl p-5 shadow-sm space-y-4">
-            <h2 className="text-base font-semibold text-white">Configuracion inicial</h2>
-            <p className="text-xs text-gray-200 leading-relaxed">
-              Estos datos se usan para calcular tu gasto calorico, tu objetivo diario de kcal y tus macros.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="text-xs text-white">
-                Edad
-                <input type="number" min="1" value={planForm.age || ''} onChange={(e) => setPlanForm((p) => ({ ...p, age: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-              </label>
-              <label className="text-xs text-white">
-                Estatura (cm)
-                <input type="number" min="1" value={planForm.heightCm || ''} onChange={(e) => setPlanForm((p) => ({ ...p, heightCm: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-              </label>
-              <label className="text-xs text-white">
-                Peso actual (kg)
-                <input type="number" min="1" value={planForm.weightKg || ''} onChange={(e) => setPlanForm((p) => ({ ...p, weightKg: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-              </label>
-              <label className="text-xs text-white">
-                Dias de entreno/semana
-                <input type="number" min="0" max="7" value={planForm.trainingDays === 0 ? '' : planForm.trainingDays} onChange={(e) => setPlanForm((p) => ({ ...p, trainingDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={(e) => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-              </label>
+
+          {/* Edit plan form */}
+          {editingPlan && (
+            <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-2xl p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-semibold text-white">Editar datos</h2>
+              <PlanFormFields form={planForm} setForm={setPlanForm} />
+              <button onClick={handleSavePlan} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Guardar cambios</button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <label className="text-xs text-white">
-                Sexo
-                <select value={planForm.sex} onChange={(e) => setPlanForm((p) => ({ ...p, sex: e.target.value as SexType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="male">Hombre</option><option value="female">Mujer</option></select>
-              </label>
-              <label className="text-xs text-white">
-                Actividad diaria
-                <select value={planForm.activity} onChange={(e) => setPlanForm((p) => ({ ...p, activity: e.target.value as ActivityType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option></select>
-              </label>
-              <label className="text-xs text-white">
-                Objetivo
-                <select value={planForm.goal} onChange={(e) => setPlanForm((p) => ({ ...p, goal: e.target.value as GoalType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="loss">Perder grasa</option><option value="gain">Ganar musculo</option><option value="maintain">Mantener</option></select>
-              </label>
+          )}
+
+          {/* Weight chart */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evolución del peso</h2>
+              {weightEntries.length > 0 && (
+                <span className="text-xs text-gray-400">{weightEntries.length} registro{weightEntries.length !== 1 ? 's' : ''}</span>
+              )}
             </div>
-            <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2 text-[11px] text-gray-200 leading-relaxed">
-              <p><span className="font-semibold text-white">Actividad baja:</span> 0-2 entrenos/semana o vida muy sedentaria.</p>
-              <p><span className="font-semibold text-white">Actividad media:</span> 3-4 entrenos/semana y actividad normal.</p>
-              <p><span className="font-semibold text-white">Actividad alta:</span> 5-7 entrenos/semana o trabajo fisico.</p>
+            <WeightChart entries={weightEntries} />
+            {/* Manual weight entry */}
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Añadir registro de esta semana:</p>
+              <div className="flex gap-2">
+                <input value={weeklyWeightInput} onChange={e => setWeeklyWeightInput(e.target.value.replace(',', '.'))}
+                  placeholder="58.5 kg" type="number" step="0.1" inputMode="decimal"
+                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+                <button onClick={handleSaveWeight} disabled={weightSaving || !weeklyWeightInput}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {weightSaving ? '...' : 'Guardar'}
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-gray-300">
-              Se calculara automaticamente: kcal objetivo, proteina, carbohidratos y grasas.
-            </p>
-            <button onClick={handleSavePlan} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">Guardar objetivo y continuar</button>
           </div>
+
+          <button onClick={logout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            Cerrar sesión
+          </button>
         </div>
       </div>
     )
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex items-center gap-2 text-gray-400">
-          <RefreshCw size={16} className="animate-spin" />
-          <span className="text-sm">Cargando...</span>
-        </div>
-      </div>
-    )
-  }
+  // ── MAIN SCREEN ──
+  const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+  const current = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className={`max-w-lg mx-auto px-4 py-6 space-y-4 transition-all duration-300 ease-out ${
-        screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-      }`}>
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{activeProfile.avatar} {activeProfile.name}</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Mi dieta</h1>
             <p className="text-sm text-gray-400 capitalize">{dateFormatted}</p>
           </div>
           <div className="flex items-center gap-2">
-            {saving && <div className="flex items-center gap-1.5 text-xs text-gray-400"><RefreshCw size={12} className="animate-spin" />Guardando</div>}
-            <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700">Cambiar perfil</button>
+            {saving && <div className="flex items-center gap-1 text-xs text-gray-400"><RefreshCw size={11} className="animate-spin" />Guardando</div>}
+            <button onClick={() => setAppScreen('profile')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
+              <div className="w-5 h-5 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
+              <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">{activeProfile.name}</span>
+            </button>
           </div>
         </div>
 
         <DaySelector dayType={dayType} schedule={schedule} onDayType={handleDayType} onSchedule={handleSchedule} />
         <MacroBar current={current} target={computedTarget} />
+
         <div className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2">
-          Objetivo: {activeProfile.plan.goal === 'loss' ? 'perdida progresiva' : activeProfile.plan.goal === 'gain' ? 'ganancia muscular' : 'mantenimiento'} · TDEE {activeProfile.plan.tdee} kcal · Meta {activeProfile.plan.targetKcal} kcal
+          {activeProfile.plan.goal === 'gain' ? 'Ganancia muscular' : activeProfile.plan.goal === 'loss' ? 'Pérdida de grasa' : 'Mantenimiento'} · TDEE {activeProfile.plan.tdee} kcal · Meta {activeProfile.plan.targetKcal} kcal
         </div>
 
-        {errorMsg && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 leading-relaxed">{errorMsg}</div>}
+        {errorMsg && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">{errorMsg}</div>}
         {dayData.dayNote && <div className="text-sm text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-4 py-3 leading-relaxed">{dayData.dayNote}</div>}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm"><Timeline items={dayData.timeline} /></div>
 
+        {/* Calendar */}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendario de cumplimiento</h2>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}</span>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendario</h2>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+              Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}
+            </span>
           </div>
-          <div className="grid grid-cols-7 gap-1.5 mb-2">{weekdayLabels.map((label) => <div key={label} className="text-[10px] text-center text-gray-400 font-medium">{label}</div>)}</div>
+          <div className="grid grid-cols-7 gap-1.5 mb-2">{weekdayLabels.map(l => <div key={l} className="text-[10px] text-center text-gray-400 font-medium">{l}</div>)}</div>
           <div className="grid grid-cols-7 gap-1.5">
-            {cells.map((day, idx) => {
-              if (!day) return <div key={`blank-${idx}`} className="h-8" />
-              const dayISO = `${month}-${String(day).padStart(2, '0')}`
-              const completed = completedDates.includes(dayISO)
-              const cheated = cheatDates.includes(dayISO)
-              const isToday = dayISO === date
-              return <div key={dayISO} className={`h-8 rounded-lg text-xs flex items-center justify-center border ${cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-1 ring-blue-300 dark:ring-blue-700' : ''}`}>{day}</div>
+            {calendarCells.map((day, idx) => {
+              if (!day) return <div key={`b${idx}`} className="h-8" />
+              const iso = `${month}-${String(day).padStart(2, '0')}`
+              const completed = completedDates.includes(iso)
+              const cheated = cheatDates.includes(iso)
+              const isToday = iso === date
+              return (
+                <div key={iso} className={`h-8 rounded-lg text-xs flex items-center justify-center border ${cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-1 ring-blue-300 dark:ring-blue-700' : ''}`}>{day}</div>
+              )
             })}
           </div>
-          <p className="text-[11px] text-gray-400 mt-2">Verde: dieta cumplida. Naranja: día con excepción.</p>
+          <p className="text-[11px] text-gray-400 mt-2">Verde: completado · Naranja: excepción</p>
         </div>
 
+        {/* Cheat note */}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-2">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Día con excepción</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Si hoy te saliste de la dieta, apunta con qué fue (ej: pizza, helado, cena fuera).</p>
-          <input value={cheatNote} onChange={(e) => setCheatNote(e.target.value)} placeholder="Ejemplo: hamburguesa y patatas" className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-700" />
+          <p className="text-xs text-gray-500 dark:text-gray-400">Si hoy te saliste de la dieta, apunta con qué fue.</p>
+          <input value={cheatNote} onChange={e => setCheatNote(e.target.value)} placeholder="Ej: hamburguesa y patatas"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-gray-200" />
           <div className="flex gap-2">
             <button onClick={() => handleSaveCheatNote()} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">Guardar excepción</button>
-            <button onClick={() => { setCheatNote(''); handleSaveCheatNote('') }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Quitar marca</button>
+            <button onClick={() => { setCheatNote(''); handleSaveCheatNote('') }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">Quitar marca</button>
           </div>
         </div>
 
+        {/* Meals */}
         <div className="space-y-3">
-          {dayData.meals.map((meal) => (
-            <MealCard key={meal.id} meal={meal} selectedOptionId={selections[meal.id]?.option_id ?? null} onSelect={(opt) => handleSelect(meal.id, opt)} onDeselect={() => handleDeselect(meal.id)} />
+          {dayData.meals.map(meal => (
+            <MealCard key={meal.id} meal={meal} selectedOptionId={selections[meal.id]?.option_id ?? null} onSelect={opt => handleSelect(meal.id, opt)} onDeselect={() => handleDeselect(meal.id)} />
           ))}
         </div>
         <div className="h-8" />
+      </div>
+    </div>
+  )
+}
+
+// ── PLAN FORM SUBCOMPONENT ──
+function PlanFormFields({ form, setForm }: { form: typeof defaultPlanForm; setForm: React.Dispatch<React.SetStateAction<typeof defaultPlanForm>> }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-white">
+          Edad
+          <input type="number" min="1" value={form.age || ''} onChange={e => setForm(p => ({ ...p, age: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+        </label>
+        <label className="text-xs text-white">
+          Estatura (cm)
+          <input type="number" min="1" value={form.heightCm || ''} onChange={e => setForm(p => ({ ...p, heightCm: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+        </label>
+        <label className="text-xs text-white">
+          Peso actual (kg)
+          <input type="number" min="1" step="0.1" value={form.weightKg || ''} onChange={e => setForm(p => ({ ...p, weightKg: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+        </label>
+        <label className="text-xs text-white">
+          Días entreno/semana
+          <input type="number" min="0" max="7" value={form.trainingDays === 0 ? '' : form.trainingDays} onChange={e => setForm(p => ({ ...p, trainingDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+        </label>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <label className="text-xs text-white">
+          Sexo
+          <select value={form.sex} onChange={e => setForm(p => ({ ...p, sex: e.target.value as SexType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
+            <option value="male">Hombre</option><option value="female">Mujer</option>
+          </select>
+        </label>
+        <label className="text-xs text-white">
+          Actividad
+          <select value={form.activity} onChange={e => setForm(p => ({ ...p, activity: e.target.value as ActivityType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
+            <option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option>
+          </select>
+        </label>
+        <label className="text-xs text-white">
+          Objetivo
+          <select value={form.goal} onChange={e => setForm(p => ({ ...p, goal: e.target.value as GoalType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
+            <option value="loss">Perder grasa</option><option value="gain">Ganar músculo</option><option value="maintain">Mantener</option>
+          </select>
+        </label>
+      </div>
+      <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2 text-[11px] text-gray-300 leading-relaxed space-y-0.5">
+        <p><span className="font-semibold text-white">Baja:</span> vida sedentaria o 0-2 entrenos/semana.</p>
+        <p><span className="font-semibold text-white">Media:</span> 3-4 entrenos/semana y actividad normal.</p>
+        <p><span className="font-semibold text-white">Alta:</span> 5-7 entrenos/semana o trabajo físico.</p>
       </div>
     </div>
   )
