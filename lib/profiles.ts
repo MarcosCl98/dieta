@@ -29,7 +29,27 @@ export interface UserProfile {
   plan: UserPlan | null
 }
 
-export const AVATAR_OPTIONS = ['🦁', '🐼', '🦊', '🐯', '🐻', '🐵', '🐨', '🐶']
+export const AVATAR_OPTIONS = [
+  'bear', 'lion', 'fox', 'panda', 'wolf', 'rabbit', 'cat', 'tiger',
+] as const
+
+export type AvatarId = typeof AVATAR_OPTIONS[number]
+
+export const AVATAR_SVGS: Record<string, string> = {
+  bear: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#D4956A"/><circle cx="22" cy="18" r="11" fill="#D4956A"/><circle cx="58" cy="18" r="11" fill="#D4956A"/><circle cx="22" cy="18" r="7" fill="#C4825A"/><circle cx="58" cy="18" r="7" fill="#C4825A"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#E8AA82"/><ellipse cx="40" cy="52" rx="12" ry="9" fill="#C4825A"/><circle cx="32" cy="36" r="4" fill="#2C1A0E"/><circle cx="48" cy="36" r="4" fill="#2C1A0E"/><circle cx="33" cy="35" r="1.5" fill="white"/><circle cx="49" cy="35" r="1.5" fill="white"/><ellipse cx="40" cy="50" rx="7" ry="5" fill="#A86848"/><path d="M36 54 Q40 58 44 54" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  lion: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#E8A030"/><circle cx="40" cy="42" r="22" fill="#F0C060"/><circle cx="20" cy="30" r="12" fill="#C87820"/><circle cx="60" cy="30" r="12" fill="#C87820"/><circle cx="14" cy="22" r="8" fill="#A06010"/><circle cx="66" cy="22" r="8" fill="#A06010"/><ellipse cx="40" cy="52" rx="11" ry="8" fill="#F0D080"/><circle cx="32" cy="38" r="4" fill="#2C1A0E"/><circle cx="48" cy="38" r="4" fill="#2C1A0E"/><circle cx="33" cy="37" r="1.5" fill="white"/><circle cx="49" cy="37" r="1.5" fill="white"/><ellipse cx="40" cy="51" rx="6" ry="4.5" fill="#D4956A"/><path d="M36 55 Q40 59 44 55" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  fox: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#E8642A"/><polygon points="20,30 8,8 28,22" fill="#E8642A"/><polygon points="60,30 72,8 52,22" fill="#E8642A"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#F08050"/><ellipse cx="40" cy="52" rx="14" ry="10" fill="#F5E0D0"/><circle cx="32" cy="36" r="4" fill="#2C1A0E"/><circle cx="48" cy="36" r="4" fill="#2C1A0E"/><circle cx="33" cy="35" r="1.5" fill="white"/><circle cx="49" cy="35" r="1.5" fill="white"/><ellipse cx="40" cy="51" rx="6" ry="4" fill="#D4604A"/><path d="M36 55 Q40 59 44 55" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  panda: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#F5F5F5"/><circle cx="22" cy="20" r="12" fill="#333"/><circle cx="58" cy="20" r="12" fill="#333"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#F5F5F5"/><ellipse cx="32" cy="37" rx="7" ry="8" fill="#333"/><ellipse cx="48" cy="37" rx="7" ry="8" fill="#333"/><circle cx="32" cy="37" r="4" fill="#2C1A0E"/><circle cx="48" cy="37" r="4" fill="#2C1A0E"/><circle cx="33" cy="36" r="1.5" fill="white"/><circle cx="49" cy="36" r="1.5" fill="white"/><ellipse cx="40" cy="52" rx="10" ry="7" fill="#EEE"/><ellipse cx="40" cy="51" rx="6" ry="4" fill="#DDD"/><path d="M36 55 Q40 59 44 55" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  wolf: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#7A8FA6"/><polygon points="22,28 14,6 32,20" fill="#7A8FA6"/><polygon points="58,28 66,6 48,20" fill="#7A8FA6"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#9EB0C4"/><ellipse cx="40" cy="53" rx="13" ry="9" fill="#E8E0D8"/><circle cx="32" cy="37" r="4" fill="#2C1A0E"/><circle cx="48" cy="37" r="4" fill="#2C1A0E"/><circle cx="33" cy="36" r="1.5" fill="white"/><circle cx="49" cy="36" r="1.5" fill="white"/><ellipse cx="40" cy="51" rx="6" ry="4.5" fill="#B0A8A0"/><path d="M36 56 Q40 60 44 56" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  rabbit: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#F0E8E0"/><ellipse cx="26" cy="16" rx="8" ry="16" fill="#F0E8E0"/><ellipse cx="54" cy="16" rx="8" ry="16" fill="#F0E8E0"/><ellipse cx="26" cy="16" rx="5" ry="12" fill="#F4B0C0"/><ellipse cx="54" cy="16" rx="5" ry="12" fill="#F4B0C0"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#F0E8E0"/><circle cx="32" cy="38" r="4" fill="#8090C0"/><circle cx="48" cy="38" r="4" fill="#8090C0"/><circle cx="33" cy="37" r="1.5" fill="white"/><circle cx="49" cy="37" r="1.5" fill="white"/><circle cx="40" cy="50" r="5" fill="#F4B0C0"/><path d="M36 55 Q40 59 44 55" stroke="#C080A0" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  cat: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#C8A878"/><polygon points="20,32 12,10 30,24" fill="#C8A878"/><polygon points="60,32 68,10 50,24" fill="#C8A878"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#D8B888"/><ellipse cx="40" cy="53" rx="12" ry="8" fill="#EED8B0"/><ellipse cx="32" cy="37" rx="4" ry="5" fill="#2C1A0E"/><ellipse cx="48" cy="37" rx="4" ry="5" fill="#2C1A0E"/><circle cx="33" cy="35" r="1.5" fill="white"/><circle cx="49" cy="35" r="1.5" fill="white"/><ellipse cx="40" cy="51" rx="5" ry="3.5" fill="#C4906A"/><path d="M36 55 Q40 59 44 55" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+  tiger: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="40" r="38" fill="#E07820"/><circle cx="22" cy="20" r="11" fill="#E07820"/><circle cx="58" cy="20" r="11" fill="#E07820"/><ellipse cx="40" cy="44" rx="22" ry="20" fill="#F09040"/><ellipse cx="40" cy="53" rx="13" ry="9" fill="#F5DDB0"/><path d="M30 28 Q32 22 34 28" stroke="#A04010" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M46 28 Q48 22 50 28" stroke="#A04010" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="32" cy="38" r="4" fill="#2C1A0E"/><circle cx="48" cy="38" r="4" fill="#2C1A0E"/><circle cx="33" cy="37" r="1.5" fill="white"/><circle cx="49" cy="37" r="1.5" fill="white"/><ellipse cx="40" cy="51" rx="6" ry="4.5" fill="#D47030"/><path d="M36 56 Q40 60 44 56" stroke="#2C1A0E" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`,
+}
+
+export const AVATAR_LABELS: Record<string, string> = {
+  bear: 'Oso', lion: 'León', fox: 'Zorro', panda: 'Panda',
+  wolf: 'Lobo', rabbit: 'Conejo', cat: 'Gato', tiger: 'Tigre',
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -50,48 +70,23 @@ export function computeNutritionPlan(input: UserPlanInput): UserPlan {
       ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
       : 10 * weightKg + 6.25 * heightCm - 5 * age - 161
 
-  const baseActivityFactor: Record<ActivityType, number> = {
-    low: 1.25,
-    medium: 1.4,
-    high: 1.55,
-  }
+  const baseActivityFactor: Record<ActivityType, number> = { low: 1.25, medium: 1.4, high: 1.55 }
   const activityFactor = baseActivityFactor[input.activity] + trainingDays * 0.03
   const tdee = bmr * activityFactor
 
-  const goalFactor: Record<GoalType, number> = {
-    loss: 0.85,
-    gain: 1.1,
-    maintain: 1,
-  }
+  const goalFactor: Record<GoalType, number> = { loss: 0.85, gain: 1.1, maintain: 1 }
   const targetKcal = tdee * goalFactor[input.goal]
 
-  const proteinPerKg: Record<GoalType, number> = {
-    loss: 2.1,
-    gain: 2.2,
-    maintain: 1.9,
-  }
-  const fatPerKg: Record<GoalType, number> = {
-    loss: 0.8,
-    gain: 1,
-    maintain: 0.9,
-  }
+  const proteinPerKg: Record<GoalType, number> = { loss: 2.1, gain: 2.2, maintain: 1.9 }
+  const fatPerKg: Record<GoalType, number> = { loss: 0.8, gain: 1, maintain: 0.9 }
 
   const protein = weightKg * proteinPerKg[input.goal]
   const fat = weightKg * fatPerKg[input.goal]
   const carbs = Math.max(60, (targetKcal - protein * 4 - fat * 9) / 4)
 
   return {
-    ...input,
-    age,
-    weightKg,
-    heightCm,
-    trainingDays,
-    bmr: round(bmr),
-    tdee: round(tdee),
-    targetKcal: round(targetKcal),
-    protein: round(protein),
-    carbs: round(carbs),
-    fat: round(fat),
+    ...input, age, weightKg, heightCm, trainingDays,
+    bmr: round(bmr), tdee: round(tdee), targetKcal: round(targetKcal),
+    protein: round(protein), carbs: round(carbs), fat: round(fat),
   }
 }
-
