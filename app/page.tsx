@@ -117,6 +117,11 @@ export default function HomePage() {
   const [showWeightPrompt, setShowWeightPrompt] = useState(false)
   const [weightSaving, setWeightSaving] = useState(false)
 
+  // History viewer
+  const [historyDate, setHistoryDate] = useState<string | null>(null)
+  const [historyData, setHistoryData] = useState<{ log: { day_type: string; schedule: string; cheat_note: string | null; completed: boolean } | null; selections: { meal_id: string; option_id: string; kcal: number; prot: number; carbs: number; grasa: number }[] } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+
   const date = todayISO()
   const month = monthISO()
   const monday = lastMondayISO()
@@ -186,11 +191,13 @@ export default function HomePage() {
       .then(data => {
         const entries: WeightEntry[] = data.entries ?? []
         setWeightEntries(entries)
-        // Show Monday prompt if today is Monday and no entry for this Monday yet
-        if (isMonday()) {
-          const hasThisMonday = entries.some(e => e.date === monday)
-          if (!hasThisMonday) setShowWeightPrompt(true)
-        }
+        // Show weight prompt if no entry in the last 7 days
+        const today = new Date()
+        const sevenDaysAgo = new Date(today)
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const sevenDaysAgoISO = sevenDaysAgo.toISOString().slice(0, 10)
+        const hasRecentEntry = entries.some(e => e.date >= sevenDaysAgoISO)
+        if (!hasRecentEntry) setShowWeightPrompt(true)
       })
       .catch(() => {})
   }, [ready, userId, monday])
@@ -346,6 +353,19 @@ export default function HomePage() {
       if (activeProfile?.plan) updatePlan(activeProfile.id, { ...activeProfile.plan, weightKg: w })
     } catch { /* silent */ }
     finally { setWeightSaving(false) }
+  }
+
+  async function loadHistoryDay(iso: string) {
+    if (!userId || iso >= date) return // only past days
+    setHistoryDate(iso)
+    setHistoryData(null)
+    setHistoryLoading(true)
+    try {
+      const r = await fetch(`/api/selections/log?userId=${userId}&date=${iso}`)
+      const data = await r.json()
+      setHistoryData(data)
+    } catch { /* silent */ }
+    finally { setHistoryLoading(false) }
   }
 
   // ── LOADING ──
@@ -607,9 +627,150 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Calendar in profile */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Historial del mes</h2>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5 mb-2">
+              {weekdayLabels.map(l => <div key={l} className="text-[10px] text-center text-gray-400 font-medium">{l}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {calendarCells.map((day, idx) => {
+                if (!day) return <div key={`b${idx}`} className="h-9" />
+                const iso = `${month}-${String(day).padStart(2, '0')}`
+                const completed = completedDates.includes(iso)
+                const cheated = cheatDates.includes(iso)
+                const isToday = iso === date
+                const isPast = iso < date
+                return (
+                  <button
+                    key={iso}
+                    onClick={() => { if (isPast) { setAppScreen('main'); loadHistoryDay(iso) } }}
+                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-3">
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Completado</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />Excepción</span>
+              <span className="text-[11px] text-gray-400">Pulsa un día para ver el detalle</span>
+            </div>
+          </div>
+
           <button onClick={logout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             Cerrar sesión
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── HISTORY DAY MODAL ──
+  if (historyDate) {
+    const hFormatted = new Date(historyDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    // Reconstruct what was eaten that day
+    const hDayType = (historyData?.log?.day_type ?? 'fuerza') as DayType
+    const hSchedule = (historyData?.log?.schedule ?? 'tarde') as ScheduleType
+    const hScheduleKey = (hDayType === 'descanso' || hDayType === 'cardio') ? 'main' : hSchedule
+    const hRawData = DIET_DATA[hDayType]?.[hScheduleKey]
+    const hDayData = hRawData && activeProfile?.plan ? scaleDayData(hRawData, activeProfile.plan.targetKcal) : hRawData
+    const hSelections = historyData?.selections ?? []
+    const hTotal = hSelections.reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot }), { kcal: 0, prot: 0 })
+    const hCompleted = historyData?.log?.completed ?? false
+    const hCheatNote = historyData?.log?.cheat_note ?? null
+
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
+          <div className="max-w-lg mx-auto flex items-center gap-3">
+            <button onClick={() => { setHistoryDate(null); setHistoryData(null) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              <ChevronLeft size={16} />Volver
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize truncate">{hFormatted}</p>
+            </div>
+            {hCompleted && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 font-medium shrink-0">Completado</span>}
+            {!hCompleted && historyData?.log && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 font-medium shrink-0">Parcial</span>}
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
+          {historyLoading && (
+            <div className="flex items-center justify-center py-12 gap-2 text-gray-400">
+              <RefreshCw size={16} className="animate-spin" /><span className="text-sm">Cargando...</span>
+            </div>
+          )}
+
+          {!historyLoading && !historyData?.log && (
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 text-center shadow-sm">
+              <p className="text-sm text-gray-500 dark:text-gray-400">No hay datos registrados para este día.</p>
+            </div>
+          )}
+
+          {!historyLoading && historyData?.log && (
+            <>
+              {/* Summary card */}
+              <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{hTotal.kcal}</p>
+                    <p className="text-xs text-gray-400">kcal</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{hTotal.prot}g</p>
+                    <p className="text-xs text-gray-400">proteína</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{hSelections.length}/{hDayData?.meals.length ?? '?'}</p>
+                    <p className="text-xs text-gray-400">tomas</p>
+                  </div>
+                </div>
+                {hCheatNote && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      <span className="font-medium">Excepción: </span>{hCheatNote}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Meals detail */}
+              {hDayData && hDayData.meals.map(meal => {
+                const sel = hSelections.find(s => s.meal_id === meal.id)
+                const selectedOpt = sel ? meal.options.find(o => o.id === sel.option_id) : null
+                return (
+                  <div key={meal.id} className={`bg-white dark:bg-gray-900 border rounded-2xl overflow-hidden shadow-sm ${sel ? 'border-gray-100 dark:border-gray-800' : 'border-dashed border-gray-200 dark:border-gray-700 opacity-60'}`}>
+                    <div className="px-4 py-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{meal.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{meal.time}</p>
+                      </div>
+                      {sel ? (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs font-medium text-amber-600">{sel.kcal} kcal</span>
+                          <span className="text-xs font-medium text-emerald-600">{sel.prot}g prot</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 shrink-0">No registrado</span>
+                      )}
+                    </div>
+                    {selectedOpt && (
+                      <div className="px-4 pb-3 border-t border-gray-50 dark:border-gray-800/50 pt-2">
+                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{selectedOpt.name.replace(/\[opcional\]/g, '')}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       </div>
     )
@@ -651,30 +812,6 @@ export default function HomePage() {
         {errorMsg && <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">{errorMsg}</div>}
         {dayData.dayNote && <div className="text-sm text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-4 py-3 leading-relaxed">{dayData.dayNote}</div>}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm"><Timeline items={dayData.timeline} /></div>
-
-        {/* Calendar */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendario</h2>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-              Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}
-            </span>
-          </div>
-          <div className="grid grid-cols-7 gap-1.5 mb-2">{weekdayLabels.map(l => <div key={l} className="text-[10px] text-center text-gray-400 font-medium">{l}</div>)}</div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {calendarCells.map((day, idx) => {
-              if (!day) return <div key={`b${idx}`} className="h-8" />
-              const iso = `${month}-${String(day).padStart(2, '0')}`
-              const completed = completedDates.includes(iso)
-              const cheated = cheatDates.includes(iso)
-              const isToday = iso === date
-              return (
-                <div key={iso} className={`h-8 rounded-lg text-xs flex items-center justify-center border ${cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-1 ring-blue-300 dark:ring-blue-700' : ''}`}>{day}</div>
-              )
-            })}
-          </div>
-          <p className="text-[11px] text-gray-400 mt-2">Verde: completado · Naranja: excepción</p>
-        </div>
 
         {/* Cheat note */}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-2">
