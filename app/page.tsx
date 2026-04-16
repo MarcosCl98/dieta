@@ -75,9 +75,17 @@ export default function HomePage() {
   const [editingName, setEditingName] = useState('')
   const [editingPin, setEditingPin] = useState('')
   const [editingAvatar, setEditingAvatar] = useState(AVATAR_OPTIONS[0])
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
+  const [screenVisible, setScreenVisible] = useState(false)
 
   const date = todayISO()
   const month = monthISO()
+
+  useEffect(() => {
+    setScreenVisible(false)
+    const timer = setTimeout(() => setScreenVisible(true), 20)
+    return () => clearTimeout(timer)
+  }, [activeProfile?.id, loginProfileId, showCreateProfile])
 
   const scheduleKey = dayType === 'descanso' || dayType === 'cardio' ? 'main' : schedule
   const dayData = DIET_DATA[dayType][scheduleKey]
@@ -265,6 +273,7 @@ export default function HomePage() {
     setProfileName('')
     setProfilePin('')
     setLoginPin('')
+    setShowCreateProfile(false)
   }
 
   function handleLogin() {
@@ -332,12 +341,14 @@ export default function HomePage() {
   if (!activeProfile) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
+        <div className={`max-w-lg mx-auto px-4 py-8 space-y-4 transition-all duration-300 ease-out ${
+          screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Seleccion de perfil</h1>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Perfiles</h2>
-            <div className="grid grid-cols-2 gap-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">¿Quien eres?</h2>
+            <div className="grid grid-cols-3 gap-3">
               {profiles.map((p) => (
                 <button
                   key={p.id}
@@ -349,23 +360,45 @@ export default function HomePage() {
                   }`}
                 >
                   <div className="text-2xl mb-1">{p.avatar}</div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-white truncate">{p.name}</div>
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setShowCreateProfile(true)
+                  setEditingProfileId(null)
+                  setAuthError(null)
+                }}
+                className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-3 text-center bg-gray-50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"
+              >
+                <div className="text-2xl mb-1 text-gray-500">+</div>
+                <div className="text-xs font-medium text-gray-600 dark:text-gray-300">Añadir</div>
+              </button>
             </div>
-            <input
-              value={loginPin}
-              onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="PIN (4 numeros)"
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
-            />
-            <button onClick={handleLogin} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-              Acceder
-            </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editingProfileId ? 'Editar perfil' : 'Crear perfil'}</h2>
+          <div className={`transition-all duration-300 ease-out ${
+            loginProfileId ? 'max-h-40 opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1 overflow-hidden'
+          }`}>
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Introduce tu PIN</h2>
+              <input
+                value={loginPin}
+                onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="PIN (4 numeros)"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              />
+              <button onClick={handleLogin} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                Acceder
+              </button>
+            </div>
+          </div>
+
+          <div className={`transition-all duration-300 ease-out ${
+            showCreateProfile || editingProfileId ? 'max-h-[520px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-1 overflow-hidden'
+          }`}>
+            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editingProfileId ? 'Editar perfil' : 'Crear perfil'}</h2>
             <input
               value={editingProfileId ? editingName : profileName}
               onChange={(e) => (editingProfileId ? setEditingName(e.target.value) : setProfileName(e.target.value))}
@@ -407,9 +440,14 @@ export default function HomePage() {
                 </button>
               </div>
             ) : (
-              <button onClick={handleCreateProfile} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-                Crear y entrar
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleCreateProfile} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                  Crear y entrar
+                </button>
+                <button onClick={() => setShowCreateProfile(false)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                  Cancelar
+                </button>
+              </div>
             )}
             {profiles.length > 0 && (
               <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1">
@@ -425,6 +463,7 @@ export default function HomePage() {
                 ))}
               </div>
             )}
+            </div>
           </div>
           {authError && (
             <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 leading-relaxed">
@@ -439,15 +478,17 @@ export default function HomePage() {
   if (!activeProfile.plan) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
+        <div className={`max-w-lg mx-auto px-4 py-8 space-y-4 transition-all duration-300 ease-out ${
+          screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}>
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{activeProfile.avatar} {activeProfile.name}</h1>
             <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700">Cambiar perfil</button>
           </div>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-white">Configuracion inicial</h2>
-            <p className="text-xs text-gray-200">
-              Completa tus datos para calcular tus kcal y macros objetivo segun tu meta.
+          <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-3xl p-5 shadow-sm space-y-4">
+            <h2 className="text-base font-semibold text-white">Configuracion inicial</h2>
+            <p className="text-xs text-gray-200 leading-relaxed">
+              Estos datos se usan para calcular tu gasto calorico, tu objetivo diario de kcal y tus macros.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-white">
@@ -481,8 +522,13 @@ export default function HomePage() {
                 <select value={planForm.goal} onChange={(e) => setPlanForm((p) => ({ ...p, goal: e.target.value as GoalType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"><option value="loss">Perder grasa</option><option value="gain">Ganar musculo</option><option value="maintain">Mantener</option></select>
               </label>
             </div>
+            <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2 text-[11px] text-gray-200 leading-relaxed">
+              <p><span className="font-semibold text-white">Actividad baja:</span> 0-2 entrenos/semana o vida muy sedentaria.</p>
+              <p><span className="font-semibold text-white">Actividad media:</span> 3-4 entrenos/semana y actividad normal.</p>
+              <p><span className="font-semibold text-white">Actividad alta:</span> 5-7 entrenos/semana o trabajo fisico.</p>
+            </div>
             <p className="text-xs text-gray-300">
-              Esta configuracion define tus kcal objetivo y tus macros personalizados del perfil.
+              Se calculara automaticamente: kcal objetivo, proteina, carbohidratos y grasas.
             </p>
             <button onClick={handleSavePlan} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">Guardar objetivo y continuar</button>
           </div>
@@ -504,7 +550,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <div className={`max-w-lg mx-auto px-4 py-6 space-y-4 transition-all duration-300 ease-out ${
+        screenVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      }`}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{activeProfile.avatar} {activeProfile.name}</h1>
