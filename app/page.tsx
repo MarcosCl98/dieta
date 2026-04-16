@@ -292,6 +292,7 @@ export default function HomePage() {
     if (!/^\d{4}$/.test(profilePin)) return setAuthError('El PIN debe tener 4 números')
     createProfile({ name: profileName, pin: profilePin, avatar: selectedAvatar })
     setProfileName(''); setProfilePin(''); setLoginPin('')
+    setAppScreen('main')
   }
 
   function handleLogin() {
@@ -300,6 +301,7 @@ export default function HomePage() {
     const result = login(loginProfileId, loginPin)
     if (!result.ok) return setAuthError(result.message)
     setLoginPin('')
+    setAppScreen('main')
   }
 
   function handleDeleteProfile() {
@@ -539,11 +541,14 @@ export default function HomePage() {
     const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weight_kg : null
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+        <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
+        <div className="max-w-lg mx-auto">
           <button onClick={() => { setAppScreen('main'); setEditingPlan(false) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-            <ChevronLeft size={16} />Volver
+            <ChevronLeft size={16} />Volver a comidas
           </button>
-
+        </div>
+      </div>
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
           {/* Profile header */}
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
@@ -612,10 +617,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Mi dieta</h1>
             <p className="text-sm text-gray-400 capitalize">{dateFormatted}</p>
@@ -629,7 +633,10 @@ export default function HomePage() {
             </button>
           </div>
         </div>
+      </div>
 
+      {/* Scrollable content */}
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
         <DaySelector dayType={dayType} schedule={schedule} onDayType={handleDayType} onSchedule={handleSchedule} />
         <MacroBar current={current} target={computedTarget} />
 
@@ -683,7 +690,7 @@ export default function HomePage() {
             <MealCard key={meal.id} meal={meal} selectedOptionId={selections[meal.id]?.option_id ?? null} onSelect={opt => handleSelect(meal.id, opt)} onDeselect={() => handleDeselect(meal.id)} />
           ))}
         </div>
-        <div className="h-8" />
+        <div className="h-16" />
       </div>
     </div>
   )
