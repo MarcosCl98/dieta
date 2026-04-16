@@ -53,7 +53,7 @@ export function MealCard({ meal, selectedOptionId, onSelect, onDeselect }: MealC
     }`}>
       {/* Header */}
       <button
-        className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
         onClick={() => setOpen(!open)}
       >
         <div className="flex-1 min-w-0">
@@ -131,12 +131,12 @@ export function MealCard({ meal, selectedOptionId, onSelect, onDeselect }: MealC
                     }}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 shrink-0 transition-all ${
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 shrink-0 transition-all ${
                         isSelected
                           ? 'border-emerald-500 bg-emerald-500'
                           : 'border-gray-300 dark:border-gray-600'
                       }`}>
-                        {isSelected && <Check size={11} className="text-white" strokeWidth={3} />}
+                        {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1">
