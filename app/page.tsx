@@ -256,7 +256,7 @@ export default function HomePage() {
     if (!profileName.trim()) return setAuthError('Pon un nombre al perfil')
     if (!/^\d{4}$/.test(profilePin)) return setAuthError('El PIN debe tener 4 números')
     createProfile({ name: profileName, pin: profilePin, avatar: selectedAvatar })
-    setProfileName(''); setProfilePin(''); setLoginPin(''); setShowCreateProfile(false)
+    setProfileName(''); setProfilePin(''); setLoginPin(''); setProfileScreen('select')
   }
 
   function handleLogin() {
