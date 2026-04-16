@@ -20,6 +20,16 @@ function formatUnexpectedError(error: unknown) {
   }
 }
 
+function getConfiguredSupabaseHost() {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!raw) return null
+  try {
+    return new URL(raw).host
+  } catch {
+    return 'INVALID_URL'
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -50,6 +60,7 @@ export async function POST(req: NextRequest) {
           details: error.details,
           hint: error.hint,
           code: error.code,
+          configuredSupabaseHost: getConfiguredSupabaseHost(),
         },
         { status: 500 }
       )
@@ -83,6 +94,7 @@ export async function DELETE(req: NextRequest) {
           details: error.details,
           hint: error.hint,
           code: error.code,
+          configuredSupabaseHost: getConfiguredSupabaseHost(),
         },
         { status: 500 }
       )
