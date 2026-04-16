@@ -32,8 +32,8 @@ export default function HomePage() {
 
   const date = todayISO()
 
-  // Resolve active data
-  const scheduleKey = dayType === 'descanso' ? 'main' : schedule
+  // Resolve active data — cardio and descanso always use 'main'
+  const scheduleKey = (dayType === 'descanso' || dayType === 'cardio') ? 'main' : schedule
   const dayData = DIET_DATA[dayType][scheduleKey]
 
   // Load saved state for today
