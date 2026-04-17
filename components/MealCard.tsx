@@ -9,6 +9,7 @@ interface MealCardProps {
   selectedOptionId: string | null
   onSelect: (option: Option) => void
   onDeselect: () => void
+  onCheatMeal?: () => void
 }
 
 const TYPE_CONFIG = {
@@ -33,7 +34,7 @@ const NOTE_BORDER: Record<string, string> = {
   '': 'border-gray-200 dark:border-gray-700',
 }
 
-export function MealCard({ meal, selectedOptionId, onSelect, onDeselect }: MealCardProps) {
+export function MealCard({ meal, selectedOptionId, onSelect, onDeselect, onCheatMeal }: MealCardProps) {
   const [open, setOpen] = useState(false)
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null)
 
@@ -190,6 +191,22 @@ export function MealCard({ meal, selectedOptionId, onSelect, onDeselect }: MealC
                 </div>
               )
             })}
+
+            {/* Cheat meal option */}
+            {onCheatMeal && (
+              <div className="mx-3 mb-2">
+                <button
+                  onClick={onCheatMeal}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                >
+                  <span className="text-xl shrink-0">🍕</span>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Cheat meal</p>
+                    <p className="text-xs text-amber-600/70 dark:text-amber-500/70 mt-0.5">Añade lo que comiste y calcula las kcal</p>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
