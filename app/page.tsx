@@ -8,6 +8,7 @@ import { DaySelector } from '@/components/DaySelector'
 import { Timeline } from '@/components/Timeline'
 import { AVATAR_OPTIONS, AVATAR_SVGS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
 import { scaleDayData } from '@/lib/scale'
+import { FoodSearchModal } from '@/components/FoodSearchModal'
 import { useProfiles } from '@/lib/useProfiles'
 import { RefreshCw, ChevronLeft, Scale } from 'lucide-react'
 
@@ -121,6 +122,10 @@ export default function HomePage() {
   const [historyDate, setHistoryDate] = useState<string | null>(null)
   const [historyData, setHistoryData] = useState<{ log: { day_type: string; schedule: string; cheat_note: string | null; completed: boolean } | null; selections: { meal_id: string; option_id: string; kcal: number; prot: number; carbs: number; grasa: number }[] } | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
+
+  // Cheat meal food search
+  const [showFoodSearch, setShowFoodSearch] = useState(false)
+  const [cheatMealData, setCheatMealData] = useState<{ kcal: number; prot: number; items: string } | null>(null)
 
   const date = todayISO()
   const month = monthISO()
@@ -320,6 +325,8 @@ export default function HomePage() {
     setHistoryData(null)
     setAppScreen('main')
     setShowWeightPrompt(false)
+    setCheatMealData(null)
+    setShowFoodSearch(false)
     logout()
   }
 
@@ -370,6 +377,19 @@ export default function HomePage() {
       if (activeProfile?.plan) updatePlan(activeProfile.id, { ...activeProfile.plan, weightKg: w })
     } catch { /* silent */ }
     finally { setWeightSaving(false) }
+  }
+
+  async function handleSaveCheatMeal(items: { name: string; grams: number; kcal: number; prot: number }[], totalKcal: number, totalProt: number, note: string) {
+    setShowFoodSearch(false)
+    const itemsStr = items.length > 0
+      ? items.map(i => `${i.name} (${i.grams}g)`).join(', ')
+      : note
+    const combined = [itemsStr, note].filter(Boolean).join(' · ')
+    setCheatMealData({ kcal: totalKcal, prot: totalProt, items: combined })
+    // Save as cheat note with kcal info
+    const fullNote = combined ? `${combined} [${totalKcal} kcal]` : `[${totalKcal} kcal]`
+    setCheatNote(fullNote)
+    await handleSaveCheatNote(fullNote)
   }
 
   async function loadHistoryDay(iso: string) {
@@ -793,6 +813,9 @@ export default function HomePage() {
     )
   }
 
+  // ── FOOD SEARCH MODAL ──
+  // (rendered as overlay over any screen)
+
   // ── MAIN SCREEN ──
   const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
   const current = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
@@ -884,17 +907,40 @@ export default function HomePage() {
         {dayData.dayNote && <div className="text-sm text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-4 py-3 leading-relaxed">{dayData.dayNote}</div>}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm"><Timeline items={dayData.timeline} /></div>
 
-        {/* Cheat note */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-2">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Día con excepción</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Si hoy te saliste de la dieta, apunta con qué fue.</p>
+        {/* Cheat meal / excepción */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Día con excepción</h2>
+            <button
+              onClick={() => setShowFoodSearch(true)}
+              className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1.5"
+            >
+              🍕 Calcular kcal
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Usa el calculador para saber las kcal de lo que comiste, o apunta una nota rápida.</p>
+          {cheatMealData && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 space-y-1">
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-300">{cheatMealData.items}</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">{cheatMealData.kcal} kcal · {cheatMealData.prot}g prot</p>
+            </div>
+          )}
           <input value={cheatNote} onChange={e => setCheatNote(e.target.value)} placeholder="Ej: hamburguesa y patatas"
             className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-gray-200" />
           <div className="flex gap-2">
-            <button onClick={() => handleSaveCheatNote()} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">Guardar excepción</button>
-            <button onClick={() => { setCheatNote(''); handleSaveCheatNote('') }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">Quitar marca</button>
+            <button onClick={() => handleSaveCheatNote()} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">Guardar nota</button>
+            <button onClick={() => { setCheatNote(''); setCheatMealData(null); handleSaveCheatNote('') }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">Quitar marca</button>
           </div>
         </div>
+
+        {/* Food search modal */}
+        {showFoodSearch && (
+          <FoodSearchModal
+            onClose={() => setShowFoodSearch(false)}
+            onSave={handleSaveCheatMeal}
+            initialNote={cheatNote}
+          />
+        )}
 
         {/* Meals */}
         <div className="space-y-3">
