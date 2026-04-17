@@ -307,6 +307,22 @@ export default function HomePage() {
     setAppScreen('main')
   }
 
+  function handleLogout() {
+    // Reset all per-user state before switching profile
+    setSelections({})
+    setDayType('fuerza')
+    setSchedule('tarde')
+    setCheatNote('')
+    setCompletedDates([])
+    setCheatDates([])
+    setWeightEntries([])
+    setHistoryDate(null)
+    setHistoryData(null)
+    setAppScreen('main')
+    setShowWeightPrompt(false)
+    logout()
+  }
+
   function handleLogin() {
     setAuthError(null)
     if (!loginProfileId) return setAuthError('Selecciona un perfil')
@@ -507,7 +523,7 @@ export default function HomePage() {
             <div className="w-8 h-8 rounded-full overflow-hidden" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
             <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{activeProfile.name}</span>
           </div>
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">Cerrar sesión</button>
+          <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">Cerrar sesión</button>
         </div>
         <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-3xl p-5 shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-white">Configuración inicial</h2>
@@ -665,7 +681,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <button onClick={logout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+          <button onClick={handleLogout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             Cerrar sesión
           </button>
         </div>
