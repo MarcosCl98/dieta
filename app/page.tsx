@@ -382,13 +382,13 @@ export default function HomePage() {
   }
 
   async function handleSaveCheatMeal(
-    foodItems: { name: string; grams: number; kcal: number; prot: number; carbs: number; grasa: number }[],
+    foodItems: { name: string; amount?: number; grams?: number; kcal: number; prot: number; carbs: number; grasa: number }[],
     totalKcal: number, totalProt: number, _note: string
   ) {
     setShowFoodSearch(false)
     if (foodSearchTarget === 'exception') {
       // Save as cheat day note
-      const itemsStr = foodItems.map(i => `${i.name} (${i.grams}g)`).join(', ')
+      const itemsStr = foodItems.map(i => `${i.name} (${i.amount ?? i.grams ?? ''})`).join(', ')
       setCheatMealData({ kcal: totalKcal, prot: totalProt, items: itemsStr })
       const fullNote = `${itemsStr} [${totalKcal} kcal]`
       setCheatNote(fullNote)
@@ -396,7 +396,7 @@ export default function HomePage() {
     } else {
       // Save as a meal selection for a specific meal
       const mealId = foodSearchTarget
-      const itemsStr = foodItems.map(i => `${i.name} (${i.grams}g)`).join(', ')
+      const itemsStr = foodItems.map(i => `${i.name} (${i.amount ?? i.grams ?? ''})`).join(', ')
       const fakeOption = {
         id: 'cheat',
         name: `🍕 Cheat meal: ${itemsStr}`,
