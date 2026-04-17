@@ -125,7 +125,7 @@ export default function HomePage() {
 
   // Cheat meal food search
   const [showFoodSearch, setShowFoodSearch] = useState(false)
-  const [cheatMealData, setCheatMealData] = useState<{ kcal: number; prot: number; items: string } | null>(null)
+  const [cheatMealData, setCheatMealData] = useState<{ kcal: number; prot: number; carbs: number; grasa: number; items: string } | null>(null)
   // Which meal triggered food search: 'exception' | meal_id
   const [foodSearchTarget, setFoodSearchTarget] = useState<string>('exception')
 
@@ -387,9 +387,11 @@ export default function HomePage() {
   ) {
     setShowFoodSearch(false)
     if (foodSearchTarget === 'exception') {
-      // Save as cheat day note
+      // Save as cheat day note + track full macros for current total
       const itemsStr = foodItems.map(i => `${i.name} (${i.amount ?? i.grams ?? ''})`).join(', ')
-      setCheatMealData({ kcal: totalKcal, prot: totalProt, items: itemsStr })
+      const totalCarbs = foodItems.reduce((a, i) => a + (i.carbs || 0), 0)
+      const totalGrasa = foodItems.reduce((a, i) => a + (i.grasa || 0), 0)
+      setCheatMealData({ kcal: totalKcal, prot: totalProt, carbs: totalCarbs, grasa: totalGrasa, items: itemsStr })
       const fullNote = `${itemsStr} [${totalKcal} kcal]`
       setCheatNote(fullNote)
       await handleSaveCheatNote(fullNote)
@@ -701,21 +703,22 @@ export default function HomePage() {
                 const cheated = cheatDates.includes(iso)
                 const isToday = iso === date
                 const isPast = iso < date
+                const isOverKcal = isToday && current.kcal > computedTarget.kcal * 1.1
                 return (
                   <button
                     key={iso}
                     onClick={() => { if (isPast) { setAppScreen('main'); loadHistoryDay(iso) } }}
-                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
+                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
                   >
                     {day}
                   </button>
                 )
               })}
             </div>
-            <div className="flex items-center gap-4 mt-3">
+            <div className="flex flex-wrap items-center gap-3 mt-3">
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Completado</span>
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />Excepción</span>
-              <span className="text-[11px] text-gray-400">Pulsa un día para ver el detalle</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />Kcal excedidas</span>
             </div>
           </div>
 
@@ -836,7 +839,14 @@ export default function HomePage() {
 
   // ── MAIN SCREEN ──
   const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-  const current = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
+  const selectionsTotal = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
+  // Add exception cheat meal to totals (doesn't go through selections)
+  const current = {
+    kcal: selectionsTotal.kcal + (cheatMealData?.kcal ?? 0),
+    prot: selectionsTotal.prot + (cheatMealData?.prot ?? 0),
+    carbs: selectionsTotal.carbs + (cheatMealData?.carbs ?? 0),
+    grasa: selectionsTotal.grasa + (cheatMealData?.grasa ?? 0),
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
