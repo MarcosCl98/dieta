@@ -910,27 +910,26 @@ export default function HomePage() {
         {/* Cheat meal / excepción */}
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Día con excepción</h2>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Día con excepción</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">¿Te saltaste la dieta? Registra lo que comiste.</p>
+            </div>
             <button
               onClick={() => setShowFoodSearch(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1.5"
+              className="text-xs px-3 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1.5 shrink-0"
             >
-              🍕 Calcular kcal
+              <span>🍕</span> Añadir alimento
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Usa el calculador para saber las kcal de lo que comiste, o apunta una nota rápida.</p>
           {cheatMealData && (
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 space-y-1">
               <p className="text-xs font-medium text-amber-800 dark:text-amber-300">{cheatMealData.items}</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">{cheatMealData.kcal} kcal · {cheatMealData.prot}g prot</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-amber-600 dark:text-amber-400">{cheatMealData.kcal} kcal · {cheatMealData.prot}g prot</p>
+                <button onClick={() => { setCheatMealData(null); setCheatNote(''); handleSaveCheatNote('') }} className="text-xs text-amber-500 hover:text-red-500 transition-colors">Quitar</button>
+              </div>
             </div>
           )}
-          <input value={cheatNote} onChange={e => setCheatNote(e.target.value)} placeholder="Ej: hamburguesa y patatas"
-            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-gray-200" />
-          <div className="flex gap-2">
-            <button onClick={() => handleSaveCheatNote()} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">Guardar nota</button>
-            <button onClick={() => { setCheatNote(''); setCheatMealData(null); handleSaveCheatNote('') }} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">Quitar marca</button>
-          </div>
         </div>
 
         {/* Food search modal */}
