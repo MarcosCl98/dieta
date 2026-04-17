@@ -126,6 +126,8 @@ export default function HomePage() {
   // Cheat meal food search
   const [showFoodSearch, setShowFoodSearch] = useState(false)
   const [cheatMealData, setCheatMealData] = useState<{ kcal: number; prot: number; items: string } | null>(null)
+  // Which meal triggered food search: 'exception' | meal_id
+  const [foodSearchTarget, setFoodSearchTarget] = useState<string>('exception')
 
   const date = todayISO()
   const month = monthISO()
@@ -379,17 +381,33 @@ export default function HomePage() {
     finally { setWeightSaving(false) }
   }
 
-  async function handleSaveCheatMeal(items: { name: string; grams: number; kcal: number; prot: number }[], totalKcal: number, totalProt: number, note: string) {
+  async function handleSaveCheatMeal(
+    foodItems: { name: string; grams: number; kcal: number; prot: number; carbs: number; grasa: number }[],
+    totalKcal: number, totalProt: number, _note: string
+  ) {
     setShowFoodSearch(false)
-    const itemsStr = items.length > 0
-      ? items.map(i => `${i.name} (${i.grams}g)`).join(', ')
-      : note
-    const combined = [itemsStr, note].filter(Boolean).join(' · ')
-    setCheatMealData({ kcal: totalKcal, prot: totalProt, items: combined })
-    // Save as cheat note with kcal info
-    const fullNote = combined ? `${combined} [${totalKcal} kcal]` : `[${totalKcal} kcal]`
-    setCheatNote(fullNote)
-    await handleSaveCheatNote(fullNote)
+    if (foodSearchTarget === 'exception') {
+      // Save as cheat day note
+      const itemsStr = foodItems.map(i => `${i.name} (${i.grams}g)`).join(', ')
+      setCheatMealData({ kcal: totalKcal, prot: totalProt, items: itemsStr })
+      const fullNote = `${itemsStr} [${totalKcal} kcal]`
+      setCheatNote(fullNote)
+      await handleSaveCheatNote(fullNote)
+    } else {
+      // Save as a meal selection for a specific meal
+      const mealId = foodSearchTarget
+      const itemsStr = foodItems.map(i => `${i.name} (${i.grams}g)`).join(', ')
+      const fakeOption = {
+        id: 'cheat',
+        name: `🍕 Cheat meal: ${itemsStr}`,
+        kcal: totalKcal,
+        prot: totalProt,
+        carbs: foodItems.reduce((a, i) => a + i.carbs, 0),
+        grasa: foodItems.reduce((a, i) => a + i.grasa, 0),
+        type: 'ocasional' as const,
+      }
+      await handleSelect(mealId, fakeOption)
+    }
   }
 
   async function loadHistoryDay(iso: string) {
@@ -915,7 +933,7 @@ export default function HomePage() {
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">¿Te saltaste la dieta? Registra lo que comiste.</p>
             </div>
             <button
-              onClick={() => setShowFoodSearch(true)}
+              onClick={() => { setFoodSearchTarget('exception'); setShowFoodSearch(true) }}
               className="text-xs px-3 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1.5 shrink-0"
             >
               <span>🍕</span> Añadir alimento
@@ -944,7 +962,14 @@ export default function HomePage() {
         {/* Meals */}
         <div className="space-y-3">
           {dayData.meals.map(meal => (
-            <MealCard key={meal.id} meal={meal} selectedOptionId={selections[meal.id]?.option_id ?? null} onSelect={opt => handleSelect(meal.id, opt)} onDeselect={() => handleDeselect(meal.id)} />
+            <MealCard
+              key={meal.id}
+              meal={meal}
+              selectedOptionId={selections[meal.id]?.option_id ?? null}
+              onSelect={opt => handleSelect(meal.id, opt)}
+              onDeselect={() => handleDeselect(meal.id)}
+              onCheatMeal={() => { setFoodSearchTarget(meal.id); setShowFoodSearch(true) }}
+            />
           ))}
         </div>
         <div className="h-16" />
