@@ -33,7 +33,7 @@ export function FoodSearchModal({ onClose, onSave, initialNote = '' }: FoodSearc
   const [grams, setGrams] = useState('100')
   const [searching, setSearching] = useState(false)
   const [result, setResult] = useState<FoodResult | null>(null)
-  const [notFound, setNotFound] = useState(false)
+  const [notFound, setNotFound] = useState<boolean | string>(false)
   const [items, setItems] = useState<FoodItem[]>([])
   const [note, setNote] = useState(initialNote)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -51,7 +51,11 @@ export function FoodSearchModal({ onClose, onSave, initialNote = '' }: FoodSearc
     setNotFound(false)
     try {
       const res = await fetch(`/api/food-search?q=${encodeURIComponent(q)}&g=${g}`)
-      if (res.status === 404) { setNotFound(true); return }
+      if (res.status === 404) {
+        const body = await res.json().catch(() => ({}))
+        setNotFound(body.hint ?? true)
+        return
+      }
       if (!res.ok) { setNotFound(true); return }
       setResult(await res.json())
     } catch {
@@ -137,9 +141,17 @@ export function FoodSearchModal({ onClose, onSave, initialNote = '' }: FoodSearc
           {notFound && (
             <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3">
               <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-                No se encontró ese alimento. Prueba con otro nombre (en inglés también funciona) o con un término más genérico.
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                  No se encontró ese alimento.
+                </p>
+                {typeof notFound === 'string' && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{notFound}</p>
+                )}
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  También puedes buscar directamente en inglés (ej: &quot;chicken breast&quot;).
+                </p>
+              </div>
             </div>
           )}
 
