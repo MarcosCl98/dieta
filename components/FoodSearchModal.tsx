@@ -361,6 +361,14 @@ export function FoodSearchModal({ onClose, onSave }: FoodSearchModalProps) {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  // Recalculate weighted result when amount changes
+  useEffect(() => {
+    if (!result || result.fixedPortion) return
+    const r = searchFood(query, amountNum)
+    if (r && !r.fixedPortion) setResult(r)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount])
+
   const total = items.reduce((acc, i) => ({ kcal: acc.kcal + i.kcal, prot: acc.prot + i.prot }), { kcal: 0, prot: 0 })
   const amountNum = parseFloat(amount) || 100
   const suggestions = getSuggestions(query)
@@ -445,7 +453,7 @@ export function FoodSearchModal({ onClose, onSave }: FoodSearchModalProps) {
             />
           </div>
 
-          {/* Amount input — hidden for fixed portions */}
+          {/* Amount input — hidden when result is a fixed portion */}
           {!result?.fixedPortion && (
             <div className="flex items-center gap-2">
               <input
@@ -462,6 +470,11 @@ export function FoodSearchModal({ onClose, onSave }: FoodSearchModalProps) {
               </div>
               <p className="text-xs text-gray-400">cantidad</p>
             </div>
+          )}
+          {result?.fixedPortion && (
+            <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2">
+              Porción estándar: <span className="font-medium text-gray-600 dark:text-gray-300">{result.fixedPortion}{result.unit}</span> — las kcal ya están calculadas
+            </p>
           )}
 
           {/* Suggestions */}
