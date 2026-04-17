@@ -22,24 +22,36 @@ async function getToken(): Promise<string | null> {
 
 function pickBestServing(servings: Record<string, string>[]) {
   if (!servings?.length) return null
+
+  // Accept g or ml (liquids use ml)
   const withMetric = servings.filter(s =>
-    s.metric_serving_amount && parseFloat(s.metric_serving_amount) > 0 &&
+    s.metric_serving_amount &&
+    parseFloat(s.metric_serving_amount) > 0 &&
     (s.metric_serving_unit === 'g' || s.metric_serving_unit === 'ml')
   )
+
   if (withMetric.length > 0) {
+    // Prefer the one closest to 100
     return withMetric.reduce((best, s) => {
       const diff = Math.abs(parseFloat(s.metric_serving_amount) - 100)
       const bestDiff = Math.abs(parseFloat(best.metric_serving_amount) - 100)
       return diff < bestDiff ? s : best
     })
   }
-  return servings.find(s => parseFloat(s.calories ?? '0') > 0) ?? servings[0]
+
+  // Fallback: any serving with calories, treat as if 100g
+  const withCals = servings.filter(s => parseFloat(s.calories ?? '0') > 0)
+  if (withCals.length > 0) return withCals[0]
+
+  return servings[0]
 }
 
 function calcNutrition(serving: Record<string, string>, grams: number) {
-  const servingGrams = parseFloat(serving.metric_serving_amount ?? '100')
-  const factor = grams / servingGrams
-  const per100Factor = 100 / servingGrams
+  // If no metric amount, assume the serving IS 100g/ml
+  const servingAmount = parseFloat(serving.metric_serving_amount ?? '100') || 100
+  const factor = grams / servingAmount
+  const per100Factor = 100 / servingAmount
+
   return {
     kcal: Math.round(parseFloat(serving.calories ?? '0') * factor),
     prot: Math.round(parseFloat(serving.protein ?? '0') * factor * 10) / 10,
@@ -58,7 +70,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const query = searchParams.get('q')?.trim()
   const grams = parseFloat(searchParams.get('g') ?? '100')
-  // If food_id provided, get detail for that specific food
   const foodId = searchParams.get('food_id')
 
   if (!query && !foodId) return NextResponse.json({ error: 'Missing query' }, { status: 400 })
@@ -68,7 +79,7 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Auth failed' }, { status: 502 })
 
   try {
-    // If food_id given, get detail directly
+    // ── Detail by food_id ──
     if (foodId) {
       const detailRes = await fetch(
         `https://platform.fatsecret.com/rest/server.api?method=food.get.v4&food_id=${foodId}&format=json`,
@@ -81,12 +92,18 @@ export async function GET(req: NextRequest) {
       if (!servingsRaw) return NextResponse.json({ error: 'not_found' }, { status: 404 })
       const servings = Array.isArray(servingsRaw) ? servingsRaw : [servingsRaw]
       const serving = pickBestServing(servings)
-      if (!serving) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+      if (!serving) return NextResponse.json({ error: 'no_serving' }, { status: 404 })
       const nutrition = calcNutrition(serving, grams)
-      return NextResponse.json({ name: food.food_name, source: 'FatSecret', ...nutrition })
+      const unit = serving.metric_serving_unit ?? 'g'
+      return NextResponse.json({
+        name: food.food_name,
+        source: 'FatSecret',
+        unit,
+        ...nutrition
+      })
     }
 
-    // Search and return list of candidates
+    // ── Search ──
     const searchRes = await fetch(
       `https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${encodeURIComponent(query!)}&format=json&max_results=8`,
       { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
@@ -97,8 +114,8 @@ export async function GET(req: NextRequest) {
     const foodsRaw = searchData?.foods?.food
     if (!foodsRaw) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     const foods = Array.isArray(foodsRaw) ? foodsRaw : [foodsRaw]
+    if (!foods.length) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-    // Return list for user to pick from
     const candidates = foods.map((f: Record<string, string>) => ({
       food_id: f.food_id,
       name: f.food_name,
@@ -107,7 +124,7 @@ export async function GET(req: NextRequest) {
     }))
 
     return NextResponse.json({ candidates })
-  } catch {
-    return NextResponse.json({ error: 'Request failed' }, { status: 502 })
+  } catch (err) {
+    return NextResponse.json({ error: 'Request failed', detail: String(err) }, { status: 502 })
   }
 }
