@@ -302,26 +302,30 @@ function norm(s: string) {
 
 function searchFood(query: string, amount: number): FoodResult | null {
   const q = norm(query)
-  // Fixed: exact
+
+  // Fixed: match by key OR by label
   for (const [k, v] of Object.entries(FIXED)) {
-    if (norm(k) === q) return { name: v.label, kcal: v.kcal, prot: v.prot, carbs: v.carbs, grasa: v.grasa, unit: 'g', fixedPortion: v.fixedGrams }
+    if (norm(k) === q || norm(v.label) === q)
+      return { name: v.label, kcal: v.kcal, prot: v.prot, carbs: v.carbs, grasa: v.grasa, unit: 'g', fixedPortion: v.fixedGrams }
   }
-  // Fixed: partial
   for (const [k, v] of Object.entries(FIXED)) {
     const nk = norm(k)
-    if (q.includes(nk) || nk.includes(q)) return { name: v.label, kcal: v.kcal, prot: v.prot, carbs: v.carbs, grasa: v.grasa, unit: 'g', fixedPortion: v.fixedGrams }
+    const nl = norm(v.label)
+    if (q.includes(nk) || nk.includes(q) || q.includes(nl) || nl.includes(q))
+      return { name: v.label, kcal: v.kcal, prot: v.prot, carbs: v.carbs, grasa: v.grasa, unit: 'g', fixedPortion: v.fixedGrams }
   }
-  // Weighted: exact
+
+  // Weighted: match by key OR by label
   for (const [k, v] of Object.entries(WEIGHTED)) {
-    if (norm(k) === q) {
+    if (norm(k) === q || norm(v.label) === q) {
       const f = amount / 100
       return { name: v.label, kcal: Math.round(v.kcal * f), prot: Math.round(v.prot * f * 10) / 10, carbs: Math.round(v.carbs * f * 10) / 10, grasa: Math.round(v.grasa * f * 10) / 10, unit: v.unit }
     }
   }
-  // Weighted: partial
   for (const [k, v] of Object.entries(WEIGHTED)) {
     const nk = norm(k)
-    if (q.includes(nk) || nk.includes(q)) {
+    const nl = norm(v.label)
+    if (q.includes(nk) || nk.includes(q) || q.includes(nl) || nl.includes(q)) {
       const f = amount / 100
       return { name: v.label, kcal: Math.round(v.kcal * f), prot: Math.round(v.prot * f * 10) / 10, carbs: Math.round(v.carbs * f * 10) / 10, grasa: Math.round(v.grasa * f * 10) / 10, unit: v.unit }
     }
@@ -481,7 +485,19 @@ export function FoodSearchModal({ onClose, onSave }: FoodSearchModalProps) {
           {suggestions.length > 0 && !result && (
             <div className="flex flex-wrap gap-2">
               {suggestions.map(s => (
-                <button key={s} onClick={() => { setQuery(s); handleQueryChange(s) }}
+                <button key={s} onClick={() => {
+                  setQuery(s)
+                  // Search immediately on suggestion tap
+                  const r = searchFood(s, amountNum)
+                  if (r) {
+                    setUnit(r.unit)
+                    setResult(r)
+                    if (r.fixedPortion) setAmount(String(r.fixedPortion))
+                    setNotFound(false)
+                  } else {
+                    handleQueryChange(s)
+                  }
+                }}
                   className="text-xs px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors">
                   {s}
                 </button>
