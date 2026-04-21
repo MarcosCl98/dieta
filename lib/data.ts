@@ -47,6 +47,7 @@ const R = {
   batido2: 'Batido Fresa Miel: 30g whey fresa + 150ml leche prot desnatada + 100g yogur griego 0% + 80g fresas frescas o congeladas + 10g miel. Batir con batidora.',
   batido3: 'Batido Vainilla Frutos Rojos: 30g whey vainilla + 200ml leche prot desnatada + 80g arándanos + 80g fresas + 10g miel. Batir con batidora.',
   batido4: 'Batido Mango Coco: 30g whey vainilla + 200ml leche prot desnatada + 100g mango + 10g miel + pizca de canela. Batir con batidora.',
+  wrap: 'Wrap de pollo: calienta la tortilla 30 seg en sartén. Extiende hummus o salsa césar light. Añade el pollo en tiras, el queso y verduras. Enrolla apretando bien los extremos.',
 }
 
 function veg(txt: string) {
@@ -122,6 +123,13 @@ const comidaFuerzaTarde = {
       type: 'rapida' as const,
       recipe: R.boca,
       comp: 'Pavo: más proteína, menos grasa. Jamón: más sabor, algo más de grasa.',
+    },
+    {
+      id: 'd',
+      name: 'Wrap de pollo: 1 tortilla integral (60g) + 150g pollo (air fryer) en tiras + 30g queso mozzarella light + lechuga + tomate + salsa césar light',
+      kcal: 680, prot: 52, carbs: 52, grasa: 18,
+      type: 'airfryer' as const,
+      recipe: R.wrap,
     },
   ],
 }
@@ -323,6 +331,13 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
               type: 'rapida',
               recipe: R.boca,
               comp: 'Pavo: más proteína, menos grasa. Jamón: más sabor, algo más de grasa.',
+            },
+            {
+              id: 'e',
+              name: 'Wrap de pollo: 1 tortilla integral (60g) + 150g pollo (air fryer) en tiras + 30g queso mozzarella light + lechuga + tomate + salsa césar light',
+              kcal: 680, prot: 52, carbs: 52, grasa: 18,
+              type: 'airfryer',
+              recipe: R.wrap,
             },
           ],
         },
