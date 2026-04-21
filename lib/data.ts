@@ -44,9 +44,9 @@ const R = {
   tort: 'Tortilla: 120ml claras del frasco (= 4 claras) + 1 huevo entero. Bate, sartén a fuego medio-bajo, tapa 1 min y dobla. Air fryer: molde apto, 160°C, 8 min.',
   gnoc: 'Gnocchi: cuece en agua con sal 2-3 min (flotan cuando están listos). Saltea 1 min en sartén con AOVE. Añade la salsa directamente.',
   batido1: 'Batido Chocolate Plátano: 30g whey chocolate + 200ml leche prot desnatada + 1 plátano + 5g cacao puro. Batir todo en shaker o batidora.',
-  batido2: 'Batido Fresa Yogur: 30g whey fresa + 150ml leche prot desnatada + 100g yogur griego 0% + 80g fresas frescas o congeladas. Batir con batidora.',
-  batido3: 'Batido Vainilla Avena: 30g whey vainilla + 200ml leche prot desnatada + 40g avena + 10g mantequilla cacahuete. Dejar reposar 2 min para que la avena absorba.',
-  batido4: 'Batido Verde Proteico: 30g whey vainilla + 200ml leche prot desnatada + 1 plátano + 30g espinacas baby (no se nota el sabor). Batidora obligatoria.',
+  batido2: 'Batido Fresa Miel: 30g whey fresa + 150ml leche prot desnatada + 100g yogur griego 0% + 80g fresas frescas o congeladas + 10g miel. Batir con batidora.',
+  batido3: 'Batido Vainilla Frutos Rojos: 30g whey vainilla + 200ml leche prot desnatada + 80g arándanos + 80g fresas + 10g miel. Batir con batidora.',
+  batido4: 'Batido Mango Coco: 30g whey vainilla + 200ml leche prot desnatada + 100g mango + 10g miel + pizca de canela. Batir con batidora.',
 }
 
 function veg(txt: string) {
@@ -82,9 +82,9 @@ const postEntrenoFuerzaTarde = {
   note: 'Ventana anabólica. Siempre batido de proteína + carbos simples. No lo saltes.',
   options: [
     { id: 'a', name: 'Batido Chocolate Plátano: 30g whey chocolate + 200ml leche prot + 1 plátano + 5g cacao', kcal: 310, prot: 32, carbs: 38, grasa: 4, type: 'normal' as const, recipe: R.batido1 },
-    { id: 'b', name: 'Batido Fresa Yogur: 30g whey fresa + 150ml leche prot + 100g yogur griego 0% + 80g fresas', kcal: 280, prot: 34, carbs: 24, grasa: 3, type: 'yogur' as const, recipe: R.batido2 },
-    { id: 'c', name: 'Batido Vainilla Avena: 30g whey vainilla + 200ml leche prot + 40g avena + 10g mantequilla cacahuete', kcal: 400, prot: 36, carbs: 38, grasa: 10, type: 'normal' as const, recipe: R.batido3 },
-    { id: 'd', name: 'Batido Verde: 30g whey vainilla + 200ml leche prot + 1 plátano + 30g espinacas baby', kcal: 290, prot: 30, carbs: 34, grasa: 3, type: 'normal' as const, recipe: R.batido4 },
+    { id: 'b', name: 'Batido Fresa Miel: 30g whey fresa + 150ml leche prot + 100g yogur griego 0% + 80g fresas + 10g miel', kcal: 290, prot: 34, carbs: 28, grasa: 3, type: 'yogur' as const, recipe: R.batido2 },
+    { id: 'c', name: 'Batido Frutos Rojos: 30g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 295, prot: 32, carbs: 32, grasa: 3, type: 'normal' as const, recipe: R.batido3 },
+    { id: 'd', name: 'Batido Mango Coco: 30g whey vainilla + 200ml leche prot + 100g mango + 10g miel + canela', kcal: 300, prot: 30, carbs: 36, grasa: 3, type: 'normal' as const, recipe: R.batido4 },
   ],
 }
 
@@ -197,10 +197,10 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
           noteType: 'g',
           note: 'El plato más importante del día. Carbos + proteína tras el esfuerzo. Aquí sí va el batido o el porridge.',
           options: [
-            { id: 'a', name: 'Batido Chocolate Plátano: 40g whey chocolate + 200ml leche prot + 80g avena + 1 plátano + 5g cacao', kcal: 710, prot: 52, carbs: 80, grasa: 12, type: 'normal', recipe: R.batido1 },
-            { id: 'b', name: 'Porridge: 80g avena + 200ml leche prot desnatada + 120ml claras + 1 huevo + 1 plátano + 10g miel', kcal: 730, prot: 50, carbs: 80, grasa: 14, type: 'normal', recipe: R.tort },
-            { id: 'c', name: 'Batido Vainilla Avena: 40g whey vainilla + 200ml leche prot + 80g avena + 10g mantequilla cacahuete + 1 plátano', kcal: 720, prot: 54, carbs: 76, grasa: 14, type: 'normal', recipe: R.batido3 },
-            { id: 'd', name: '200g Skyr natural + 80g avena + 1 plátano + 10g miel + 2 huevos cocidos', kcal: 700, prot: 50, carbs: 78, grasa: 14, type: 'yogur' },
+            { id: 'a', name: 'Batido Chocolate Plátano: 40g whey chocolate + 200ml leche prot + 1 plátano + 5g cacao + 80g arándanos', kcal: 420, prot: 38, carbs: 50, grasa: 5, type: 'normal', recipe: R.batido1 },
+            { id: 'b', name: 'Batido Fresa Miel: 40g whey fresa + 200ml leche prot + 100g yogur griego 0% + 100g fresas + 10g miel', kcal: 400, prot: 42, carbs: 38, grasa: 4, type: 'yogur', recipe: R.batido2 },
+            { id: 'c', name: 'Batido Frutos Rojos: 40g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 390, prot: 38, carbs: 40, grasa: 4, type: 'normal', recipe: R.batido3 },
+            { id: 'd', name: '200g Skyr natural + 1 plátano + 10g miel + 2 huevos cocidos + 80g fresas', kcal: 420, prot: 38, carbs: 46, grasa: 8, type: 'yogur' },
             { id: 'e', name: '3 tostadas Oroweat + 120ml claras + 2 huevos revueltos + 60g pechuga de pavo loncheada + 1 naranja', kcal: 660, prot: 48, carbs: 62, grasa: 16, type: 'rapida', recipe: R.tort },
           ],
         },
@@ -283,10 +283,10 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
           noteType: 'g',
           note: 'Toma más importante del día. Glucógeno bajo, ventana anabólica abierta. Carbos altos + proteína rápida.',
           options: [
-            { id: 'a', name: 'Batido Chocolate Plátano: 40g whey chocolate + 200ml leche prot + 80g avena + 1 plátano + 5g cacao', kcal: 720, prot: 52, carbs: 80, grasa: 12, type: 'normal', recipe: R.batido1 },
-            { id: 'b', name: 'Porridge: 80g avena + 200ml leche prot desnatada + 120ml claras + 1 huevo + 1 plátano + 10g miel', kcal: 730, prot: 50, carbs: 80, grasa: 14, type: 'normal', recipe: R.tort },
-            { id: 'c', name: 'Batido Vainilla Avena: 40g whey vainilla + 200ml leche prot + 80g avena + 10g mantequilla cacahuete + 1 plátano', kcal: 720, prot: 54, carbs: 76, grasa: 14, type: 'normal', recipe: R.batido3 },
-            { id: 'd', name: '200g Skyr natural + 80g avena + 1 plátano + 10g miel + 2 huevos cocidos', kcal: 700, prot: 50, carbs: 78, grasa: 14, type: 'yogur' },
+            { id: 'a', name: 'Batido Chocolate Plátano: 40g whey chocolate + 200ml leche prot + 1 plátano + 5g cacao + 80g arándanos', kcal: 420, prot: 38, carbs: 50, grasa: 5, type: 'normal', recipe: R.batido1 },
+            { id: 'b', name: 'Batido Fresa Miel: 40g whey fresa + 200ml leche prot + 100g yogur griego 0% + 100g fresas + 10g miel', kcal: 400, prot: 42, carbs: 38, grasa: 4, type: 'yogur', recipe: R.batido2 },
+            { id: 'c', name: 'Batido Frutos Rojos: 40g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 390, prot: 38, carbs: 40, grasa: 4, type: 'normal', recipe: R.batido3 },
+            { id: 'd', name: 'Batido Mango Coco: 40g whey vainilla + 200ml leche prot + 100g mango + 10g miel + canela', kcal: 400, prot: 36, carbs: 44, grasa: 4, type: 'normal', recipe: R.batido4 },
             { id: 'e', name: '3 tostadas Oroweat + 120ml claras + 2 huevos revueltos + 60g pechuga de pavo + 1 naranja', kcal: 660, prot: 48, carbs: 62, grasa: 16, type: 'rapida', recipe: R.tort },
           ],
         },
