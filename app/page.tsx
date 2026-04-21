@@ -47,7 +47,7 @@ const defaultPlanForm = {
   intensity: 'moderate' as IntensityType,
   steps: 'medium' as StepsType,
   activity: 'medium' as ActivityType,
-  goal: 'gain' as GoalType,
+  goal: 'maintain_gain' as GoalType,
 }
 
 // Simple SVG line chart
@@ -926,7 +926,7 @@ export default function HomePage() {
                   <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 mt-1">
                     <p>{activeProfile.plan.sex === 'male' ? 'Hombre' : 'Mujer'} · {activeProfile.plan.age} años · {activeProfile.plan.heightCm} cm</p>
                     <p>Peso registrado: {latestWeight ? `${latestWeight} kg` : `${activeProfile.plan.weightKg} kg (inicial)`}</p>
-                    <p>Objetivo: {activeProfile.plan.goal === 'gain' ? 'Ganar músculo' : activeProfile.plan.goal === 'loss' ? 'Perder grasa' : 'Mantener'}</p>
+                    <p>Objetivo: {activeProfile.plan.goal === 'gain' ? 'Volumen' : activeProfile.plan.goal === 'loss_slow' ? 'Pérdida gradual' : activeProfile.plan.goal === 'loss_fast' ? 'Pérdida rápida (preverano)' : 'Mantenimiento + músculo'}</p>
                     <p>Meta diaria: {activeProfile.plan.targetKcal} kcal · {activeProfile.plan.protein}g prot</p>
                   </div>
                 )}
@@ -1126,7 +1126,7 @@ export default function HomePage() {
               {msgs.map((m, i) => (
                 <p key={i} className={`text-xs leading-relaxed ${m.color}`}>{m.text}</p>
               ))}
-              <p className="text-[11px] text-gray-400 pt-0.5">Meta: {computedTarget.kcal} kcal · {computedTarget.prot}g prot · {activeProfile.plan.goal === 'gain' ? 'ganancia muscular' : activeProfile.plan.goal === 'loss' ? 'pérdida de grasa' : 'mantenimiento'}</p>
+              <p className="text-[11px] text-gray-400 pt-0.5">Meta: {computedTarget.kcal} kcal · {computedTarget.prot}g prot · {activeProfile.plan.goal === 'gain' ? 'volumen' : activeProfile.plan.goal === 'loss_slow' ? 'pérdida gradual' : activeProfile.plan.goal === 'loss_fast' ? 'pérdida rápida' : 'mantenimiento + músculo'}</p>
             </div>
           )
         })()}
@@ -1248,9 +1248,10 @@ function PlanFormFields({ form, setForm }: { form: typeof defaultPlanForm; setFo
         </label>
         <label className={lbl}>Objetivo
           <select value={form.goal} onChange={e => setForm(p => ({ ...p, goal: e.target.value as GoalType }))} className={sel}>
-            <option value="loss">Perder grasa</option>
-            <option value="gain">Ganar músculo</option>
-            <option value="maintain">Mantener</option>
+            <option value="loss_slow">Pérdida gradual</option>
+            <option value="loss_fast">Pérdida rápida (preverano)</option>
+            <option value="maintain_gain">Mantenimiento + músculo</option>
+            <option value="gain">Volumen</option>
           </select>
         </label>
       </div>
@@ -1260,7 +1261,13 @@ function PlanFormFields({ form, setForm }: { form: typeof defaultPlanForm; setFo
         <p><span className="font-semibold text-white">Intensidad suave:</span> máquinas, ritmo cómodo, pocas series al fallo.</p>
         <p><span className="font-semibold text-white">Moderada:</span> compuestos con esfuerzo real, RPE 7-8.</p>
         <p><span className="font-semibold text-white">Fuerte:</span> cerca del fallo, HIIT, sesiones exigentes.</p>
-        <p className="text-gray-400 pt-0.5">El algoritmo aplica sesgo conservador — mejor quedarse corto y ajustar.</p>
+      </div>
+      <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2.5 text-[11px] text-gray-300 leading-relaxed space-y-1">
+        <p><span className="font-semibold text-white">Pérdida gradual:</span> déficit moderado, sostenible meses. ~0.3-0.5 kg/semana. Ideal para perder varios kilos sin prisa.</p>
+        <p><span className="font-semibold text-white">Pérdida rápida:</span> déficit agresivo para 4-6 semanas máximo (preverano). ~0.8-1 kg/semana. No usar más de 2 meses.</p>
+        <p><span className="font-semibold text-white">Mantenimiento + músculo:</span> superávit mínimo (+100 kcal). Recomposición lenta, casi sin engordar. Para quienes no tienen prisa.</p>
+        <p><span className="font-semibold text-white">Volumen:</span> superávit real (+280 kcal). Máxima ganancia muscular. Planifica mínimo 6 meses. Algo de grasa inevitable.</p>
+        <p className="text-gray-400 pt-0.5">El algoritmo aplica sesgo conservador en todos los objetivos.</p>
       </div>
     </div>
   )
