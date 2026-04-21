@@ -1,6 +1,8 @@
 export type GoalType = 'loss' | 'gain' | 'maintain'
 export type SexType = 'male' | 'female'
 export type ActivityType = 'low' | 'medium' | 'high'
+export type IntensityType = 'light' | 'moderate' | 'hard'
+export type StepsType = 'low' | 'medium' | 'high'  // <6k / 6-10k / >10k
 
 export interface UserPlanInput {
   age: number
@@ -8,6 +10,9 @@ export interface UserPlanInput {
   heightCm: number
   weightKg: number
   trainingDays: number
+  trainingMinutes: number   // avg session duration
+  intensity: IntensityType  // training intensity
+  steps: StepsType          // daily steps outside training
   activity: ActivityType
   goal: GoalType
 }
@@ -64,28 +69,63 @@ export function computeNutritionPlan(input: UserPlanInput): UserPlan {
   const weightKg = clamp(input.weightKg, 35, 250)
   const heightCm = clamp(input.heightCm, 130, 230)
   const trainingDays = clamp(input.trainingDays, 0, 7)
+  const trainingMinutes = clamp(input.trainingMinutes ?? 60, 20, 120)
 
+  // ── BMR (Mifflin-St Jeor) ──
   const bmr =
     input.sex === 'male'
       ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
       : 10 * weightKg + 6.25 * heightCm - 5 * age - 161
 
-  const baseActivityFactor: Record<ActivityType, number> = { low: 1.25, medium: 1.4, high: 1.55 }
-  const activityFactor = baseActivityFactor[input.activity] + trainingDays * 0.03
-  const tdee = bmr * activityFactor
+  // ── NEAT: non-exercise activity (steps) ──
+  // Conservative bias: steps tend to be overestimated, so we use lower multipliers
+  // and cap the benefit. <6k steps = sedentary, 6-10k = light active, >10k = moderate
+  const neatFactor: Record<StepsType, number> = {
+    low: 1.20,      // <6k steps: mostly sitting
+    medium: 1.30,   // 6-10k: some walking, office work
+    high: 1.38,     // >10k: on feet a lot — capped conservatively vs old 'high' (1.55)
+  }
+  const steps = input.steps ?? 'medium'
+  const baseTdee = bmr * neatFactor[steps]
 
-  const goalFactor: Record<GoalType, number> = { loss: 0.85, gain: 1.1, maintain: 1 }
-  const targetKcal = tdee * goalFactor[input.goal]
+  // ── Exercise thermogenesis: kcal burned per training session ──
+  // Based on MET values, conservative estimates (people overestimate effort)
+  // light = RPE 5-6 (machine work, moderate pace)
+  // moderate = RPE 7-8 (compound lifts, solid effort)
+  // hard = RPE 9-10 (near failure, HIIT, heavy compounds)
+  const kcalPerMin: Record<IntensityType, number> = {
+    light: 5.5,     // ~5 MET × weight adjustment, conservative
+    moderate: 7.0,  // ~7 MET, solid lifting session
+    hard: 8.5,      // ~9 MET, but we apply 0.9 discount for overestimation
+  }
+  const intensity = input.intensity ?? 'moderate'
+  // Total weekly exercise kcal, discounted 10% for overestimation bias
+  const weeklyExerciseKcal = trainingDays * trainingMinutes * kcalPerMin[intensity] * 0.90
+  const dailyExerciseKcal = weeklyExerciseKcal / 7
 
-  const proteinPerKg: Record<GoalType, number> = { loss: 2.1, gain: 2.2, maintain: 1.9 }
-  const fatPerKg: Record<GoalType, number> = { loss: 0.8, gain: 1, maintain: 0.9 }
+  const tdee = baseTdee + dailyExerciseKcal
+
+  // ── Target kcal by goal ──
+  // Conservative: gain surplus is modest (lean gains), loss deficit not too aggressive
+  const goalAdj: Record<GoalType, number> = {
+    loss: -350,      // ~0.4-0.5 kg/week loss — sustainable, preserves muscle
+    gain: +220,      // ~0.25 kg/week gain — lean bulk, minimizes fat
+    maintain: 0,
+  }
+  const targetKcal = Math.max(1400, tdee + goalAdj[input.goal])
+
+  // ── Macros ──
+  // Protein: high for muscle preservation, slightly more on gain
+  const proteinPerKg: Record<GoalType, number> = { loss: 2.2, gain: 2.0, maintain: 1.9 }
+  // Fat: floor at 0.8g/kg for hormonal health
+  const fatPerKg: Record<GoalType, number> = { loss: 0.85, gain: 1.0, maintain: 0.9 }
 
   const protein = weightKg * proteinPerKg[input.goal]
   const fat = weightKg * fatPerKg[input.goal]
-  const carbs = Math.max(60, (targetKcal - protein * 4 - fat * 9) / 4)
+  const carbs = Math.max(50, (targetKcal - protein * 4 - fat * 9) / 4)
 
   return {
-    ...input, age, weightKg, heightCm, trainingDays,
+    ...input, age, weightKg, heightCm, trainingDays, trainingMinutes,
     bmr: round(bmr), tdee: round(tdee), targetKcal: round(targetKcal),
     protein: round(protein), carbs: round(carbs), fat: round(fat),
   }
