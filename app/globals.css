@@ -4,33 +4,38 @@
 
 @layer base {
   html {
+    height: 100%;
     -webkit-tap-highlight-color: transparent;
-    /* Prevent text size adjustment on orientation change */
     -webkit-text-size-adjust: 100%;
+    /* Dark background bleeds through notch area */
+    background-color: #030712;
   }
 
   body {
-    /* Safe area insets for iPhone notch / Dynamic Island / home indicator */
+    min-height: 100%;
+    background-color: rgb(249 250 251); /* gray-50, matches light mode bg */
+    /* Safe area — critical for Dynamic Island and home indicator */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    /* Prevent overscroll bounce showing white bg */
     overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  /* Larger tap targets on mobile */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #030712; /* gray-950 */
+    }
+  }
+
+  /* Minimum tap target size per Apple HIG */
   button {
     min-height: 44px;
   }
 
-  /* Prevent zoom on input focus on iOS */
+  /* Prevent zoom on input focus iOS */
   input, select, textarea {
     font-size: 16px !important;
   }
-}
-
-/* Smooth momentum scrolling on iOS */
-.scroll-ios {
-  -webkit-overflow-scrolling: touch;
 }
