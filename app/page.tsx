@@ -89,12 +89,14 @@ export default function HomePage() {
   const [showDayPrompt, setShowDayPrompt] = useState(false)
   const [dayPromptStep, setDayPromptStep] = useState<'type' | 'schedule'>('type')
   const [dayPromptType, setDayPromptType] = useState<DayType>('fuerza')
+  const [pendingDayPrompt, setPendingDayPrompt] = useState(false)
   const [selections, setSelections] = useState<Record<string, Selection>>({})
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [completedDates, setCompletedDates] = useState<string[]>([])
   const [cheatDates, setCheatDates] = useState<string[]>([])
+  const [loggedDates, setLoggedDates] = useState<string[]>([])
   const [cheatNote, setCheatNote] = useState('')
 
   // Profile screens: 'select' | 'login' | 'create' | 'delete'
@@ -176,10 +178,10 @@ export default function HomePage() {
           }
         } else {
           // No log for today — show day type prompt (only after 02:00)
+          // But if weight prompt will also show, defer day prompt until after
           const hour = new Date().getHours()
           if (hour >= 2) {
-            setShowDayPrompt(true)
-            setDayPromptStep('type')
+            setPendingDayPrompt(true)
           }
         }
         if (data.selections?.length) {
@@ -195,7 +197,11 @@ export default function HomePage() {
     if (!ready || !userId) return
     fetch(`/api/selections/log?userId=${userId}&month=${month}`)
       .then(r => r.json())
-      .then(data => { setCompletedDates(data.completedDates ?? []); setCheatDates(data.cheatDates ?? []) })
+      .then(data => {
+        setCompletedDates(data.completedDates ?? [])
+        setCheatDates(data.cheatDates ?? [])
+        setLoggedDates(data.loggedDates ?? [])
+      })
       .catch(() => {})
   }, [ready, userId, month])
 
@@ -213,7 +219,18 @@ export default function HomePage() {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
         const sevenDaysAgoISO = sevenDaysAgo.toISOString().slice(0, 10)
         const hasRecentEntry = entries.some(e => e.date >= sevenDaysAgoISO)
-        if (!hasRecentEntry) setShowWeightPrompt(true)
+        // If no recent entry needed AND day prompt pending, show day prompt directly
+        if (!hasRecentEntry) {
+          setShowWeightPrompt(true)
+          // day prompt will fire after weight handled
+        } else {
+          // No weight prompt — if day prompt pending, show it now
+          if (pendingDayPrompt) {
+            setPendingDayPrompt(false)
+            setShowDayPrompt(true)
+            setDayPromptStep('type')
+          }
+        }
 
         // Backfill: if no entries at all but profile has an initial weight, insert it
         if (entries.length === 0 && activeProfile?.plan?.weightKg) {
@@ -434,6 +451,11 @@ export default function HomePage() {
       })
       setShowWeightPrompt(false)
       setWeeklyWeightInput('')
+      if (pendingDayPrompt) {
+        setPendingDayPrompt(false)
+        setShowDayPrompt(true)
+        setDayPromptStep('type')
+      }
       // Update plan weight too
       if (activeProfile?.plan) updatePlan(activeProfile.id, { ...activeProfile.plan, weightKg: w })
     } catch { /* silent */ }
@@ -672,7 +694,14 @@ export default function HomePage() {
             className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-3 text-sm text-gray-900 dark:text-white text-center text-lg"
           />
           <div className="flex gap-2">
-            <button onClick={() => setShowWeightPrompt(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <button onClick={() => {
+              setShowWeightPrompt(false)
+              if (pendingDayPrompt) {
+                setPendingDayPrompt(false)
+                setShowDayPrompt(true)
+                setDayPromptStep('type')
+              }
+            }} className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               Ahora no
             </button>
             <button onClick={handleSaveWeight} disabled={weightSaving || !weeklyWeightInput}
@@ -772,20 +801,25 @@ export default function HomePage() {
                 const isToday = iso === date
                 const isPast = iso < date
                 const isOverKcal = isToday && current.kcal > computedTarget.kcal * 1.1
+                const hasLog = loggedDates.includes(iso)
+                const isPartial = isPast && hasLog && !completed && !cheated
+                const isEmpty = isPast && !hasLog && !completed && !cheated
                 return (
                   <button
                     key={iso}
                     onClick={() => { if (isPast) { setAppScreen('main'); loadHistoryDay(iso) } }}
-                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
+                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : isPartial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : isEmpty ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
                   >
                     {day}
                   </button>
                 )
               })}
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3">
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Completado</span>
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />Excepción</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-blue-200 inline-block" />Parcial</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 dark:bg-gray-700 inline-block" />Sin registrar</span>
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />Kcal excedidas</span>
             </div>
           </div>
