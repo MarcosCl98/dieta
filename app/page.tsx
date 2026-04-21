@@ -425,6 +425,15 @@ export default function HomePage() {
     finally { setHistoryLoading(false) }
   }
 
+  const selectionsTotal = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
+  // Add exception cheat meal to totals (doesn't go through selections)
+  const current = {
+    kcal: selectionsTotal.kcal + (cheatMealData?.kcal ?? 0),
+    prot: selectionsTotal.prot + (cheatMealData?.prot ?? 0),
+    carbs: selectionsTotal.carbs + (cheatMealData?.carbs ?? 0),
+    grasa: selectionsTotal.grasa + (cheatMealData?.grasa ?? 0),
+  }
+
   // ── LOADING ──
   if (!ready) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -839,14 +848,6 @@ export default function HomePage() {
 
   // ── MAIN SCREEN ──
   const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-  const selectionsTotal = Object.values(selections).reduce((acc, s) => ({ kcal: acc.kcal + s.kcal, prot: acc.prot + s.prot, carbs: acc.carbs + s.carbs, grasa: acc.grasa + s.grasa }), { kcal: 0, prot: 0, carbs: 0, grasa: 0 })
-  // Add exception cheat meal to totals (doesn't go through selections)
-  const current = {
-    kcal: selectionsTotal.kcal + (cheatMealData?.kcal ?? 0),
-    prot: selectionsTotal.prot + (cheatMealData?.prot ?? 0),
-    carbs: selectionsTotal.carbs + (cheatMealData?.carbs ?? 0),
-    grasa: selectionsTotal.grasa + (cheatMealData?.grasa ?? 0),
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
