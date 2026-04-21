@@ -1153,18 +1153,25 @@ export default function HomePage() {
           />
         )}
 
-        {/* Meals */}
+        {/* Meals — completed ones move to bottom */}
         <div className="space-y-3">
-          {dayData.meals.map(meal => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              selectedOptionId={selections[meal.id]?.option_id ?? null}
-              onSelect={opt => handleSelect(meal.id, opt)}
-              onDeselect={() => handleDeselect(meal.id)}
-              onCheatMeal={() => { setFoodSearchTarget(meal.id); setShowFoodSearch(true) }}
-            />
-          ))}
+          {[...dayData.meals]
+            .sort((a, b) => {
+              const aSelected = !!selections[a.id]
+              const bSelected = !!selections[b.id]
+              if (aSelected === bSelected) return 0
+              return aSelected ? 1 : -1
+            })
+            .map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                selectedOptionId={selections[meal.id]?.option_id ?? null}
+                onSelect={opt => handleSelect(meal.id, opt)}
+                onDeselect={() => handleDeselect(meal.id)}
+                onCheatMeal={() => { setFoodSearchTarget(meal.id); setShowFoodSearch(true) }}
+              />
+            ))}
         </div>
         <div className="h-16" />
       </div>
