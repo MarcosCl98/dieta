@@ -25,7 +25,11 @@ export async function GET(req: NextRequest) {
       .select('date, completed, cheat_note')
       .eq('user_id', userId)
       .gte('date', `${month}-01`)
-      .lt('date', `${month}-32`)
+      .lt('date', (() => {
+        const [y, m] = month.split('-').map(Number)
+        const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+        return `${next}-01`
+      })())
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
