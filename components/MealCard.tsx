@@ -1,3 +1,4 @@
+import React from 'react'
 'use client'
 
 import { useState } from 'react'
@@ -38,6 +39,16 @@ export function MealCard({ meal, selectedOptionId, onSelect, onDeselect, onCheat
   const [open, setOpen] = useState(false)
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null)
 
+  // Auto-close when a selection is made
+  const prevSelectedRef = React.useRef(selectedOptionId)
+  React.useEffect(() => {
+    if (selectedOptionId && !prevSelectedRef.current) {
+      // Just got selected — close the card
+      setOpen(false)
+    }
+    prevSelectedRef.current = selectedOptionId
+  }, [selectedOptionId])
+
   const selectedOption = meal.options.find((o) => o.id === selectedOptionId)
 
   function formatName(name: string) {
@@ -50,7 +61,7 @@ export function MealCard({ meal, selectedOptionId, onSelect, onDeselect, onCheat
 
   return (
     <div className={`bg-white dark:bg-gray-900 border rounded-2xl overflow-hidden shadow-sm transition-all ${
-      selectedOptionId ? 'border-emerald-300 dark:border-emerald-700' : 'border-gray-100 dark:border-gray-800'
+      selectedOptionId ? 'border-emerald-200 dark:border-emerald-800 opacity-80' : 'border-gray-100 dark:border-gray-800'
     }`}>
       {/* Header */}
       <button
