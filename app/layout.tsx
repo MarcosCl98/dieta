@@ -7,10 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Mi dieta',
   description: 'Tracker de dieta personal',
-  // PWA / iPhone home screen
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Mi dieta',
   },
 }
@@ -20,20 +19,20 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover', // safe area for iPhone notch/Dynamic Island
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className="h-full">
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#030712" media="(prefers-color-scheme: dark)" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#030712" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.className} h-full`}>{children}</body>
     </html>
   )
 }
