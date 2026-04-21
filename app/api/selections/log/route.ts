@@ -67,7 +67,9 @@ export async function GET(req: NextRequest) {
       if (row.cheat_note) cheatDates.push(row.date)
     }
 
-    return NextResponse.json({ completedDates, cheatDates })
+    // loggedDates = any day that has a log entry (regardless of completion)
+    const loggedDates = (logRes.data ?? []).map((row: { date: string }) => row.date)
+    return NextResponse.json({ completedDates, cheatDates, loggedDates })
   }
 
   if (!date) return NextResponse.json({ error: 'Missing date' }, { status: 400 })
