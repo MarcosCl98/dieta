@@ -205,6 +205,20 @@ export default function HomePage() {
         const sevenDaysAgoISO = sevenDaysAgo.toISOString().slice(0, 10)
         const hasRecentEntry = entries.some(e => e.date >= sevenDaysAgoISO)
         if (!hasRecentEntry) setShowWeightPrompt(true)
+
+        // Backfill: if no entries at all but profile has an initial weight, insert it
+        if (entries.length === 0 && activeProfile?.plan?.weightKg) {
+          const initialWeight = activeProfile.plan.weightKg
+          // Use the profile creation monday as the starting point
+          fetch('/api/weight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, date: monday, weightKg: initialWeight }),
+          }).then(() => {
+            setWeightEntries([{ date: monday, weight_kg: initialWeight }])
+            setShowWeightPrompt(false) // already have a baseline
+          }).catch(() => {})
+        }
       })
       .catch(() => {})
   }, [ready, userId, monday])
@@ -354,11 +368,34 @@ export default function HomePage() {
   }
 
   // Plan handlers
-  function handleSavePlan() {
+  async function handleSavePlan() {
     if (!activeProfile) return
     const plan = computeNutritionPlan(planForm)
     updatePlan(activeProfile.id, plan)
     setEditingPlan(false)
+
+    // Si es la configuración inicial (no hay plan previo) o el peso ha cambiado,
+    // guardar el peso en weight_log como punto de partida
+    const isInitialSetup = !activeProfile.plan
+    const weightChanged = activeProfile.plan && activeProfile.plan.weightKg !== planForm.weightKg
+    if ((isInitialSetup || weightChanged) && planForm.weightKg > 0 && activeProfile.id) {
+      const userId = activeProfile.id
+      // Only insert if no entry exists for this week already
+      const hasEntry = weightEntries.some(e => e.date === monday)
+      if (!hasEntry) {
+        try {
+          await fetch('/api/weight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, date: monday, weightKg: planForm.weightKg }),
+          })
+          setWeightEntries(prev => {
+            const filtered = prev.filter(e => e.date !== monday)
+            return [...filtered, { date: monday, weight_kg: planForm.weightKg }].sort((a, b) => a.date.localeCompare(b.date))
+          })
+        } catch { /* silent */ }
+      }
+    }
   }
 
   // Weight handlers
