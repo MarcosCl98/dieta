@@ -1,5 +1,5 @@
 export type DayType = 'fuerza' | 'cardio' | 'descanso'
-export type ScheduleType = 'tarde' | 'manana'
+export type ScheduleType = 'tarde' | 'manana' | 'main'
 
 export interface Option {
   id: string
