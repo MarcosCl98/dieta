@@ -64,10 +64,10 @@ const desayunoFuerzaTarde = {
   noteType: '' as const,
   note: 'Sin batido aquí — lo reservamos para el post-entreno. Aguacate o embutido, no los dos.',
   options: [
-    { id: 'b', name: '2 tostadas Oroweat + 120ml claras + 1 huevo revuelto + 60g pechuga de pavo loncheada', kcal: 490, prot: 40, carbs: 44, grasa: 12, type: 'rapida' as const, recipe: R.tort },
-    { id: 'c', name: '2 tostadas Oroweat + 1/2 aguacate (70g) + 120ml claras + 1 huevo + arándanos (80g)', kcal: 540, prot: 32, carbs: 46, grasa: 22, type: 'normal' as const },
-    { id: 'd', name: 'Bol: yogur straciatella (120g) + 200ml leche prot desnatada + 60g avena + arándanos (80g) + 10g miel', kcal: 490, prot: 30, carbs: 72, grasa: 6, type: 'yogur' as const },
-    { id: 'e', name: 'Bocadillo: pan blanco (80g) + 60g jamón serrano + café con leche prot desnatada', kcal: 470, prot: 36, carbs: 50, grasa: 16, type: 'rapida' as const, recipe: R.boca },
+    { id: 'b', name: '2 tostadas Oroweat + 120ml claras + 1 huevo revuelto + 60g pechuga de pavo loncheada + 1 pieza de fruta', kcal: 570, prot: 42, carbs: 58, grasa: 12, type: 'rapida' as const, recipe: R.tort },
+    { id: 'c', name: '2 tostadas Oroweat + 1/2 aguacate (70g) + 120ml claras + 1 huevo + arándanos (80g) + 1 plátano', kcal: 630, prot: 34, carbs: 70, grasa: 22, type: 'normal' as const },
+    { id: 'd', name: 'Bol: yogur straciatella (120g) + 200ml leche prot desnatada + 80g avena + arándanos (80g) + 10g miel', kcal: 570, prot: 34, carbs: 88, grasa: 8, type: 'yogur' as const },
+    { id: 'e', name: 'Bocadillo: pan blanco (100g) + 80g jamón serrano + café con leche prot desnatada + 1 fruta', kcal: 590, prot: 42, carbs: 64, grasa: 18, type: 'rapida' as const, recipe: R.boca },
   ],
 }
 
@@ -82,10 +82,10 @@ const postEntrenoFuerzaTarde = {
   noteType: 'a' as const,
   note: 'Ventana anabólica. Siempre batido de proteína + carbos simples. No lo saltes.',
   options: [
-    { id: 'a', name: 'Batido Chocolate Plátano: 30g whey chocolate + 200ml leche prot + 1 plátano + 5g cacao', kcal: 310, prot: 32, carbs: 38, grasa: 4, type: 'normal' as const, recipe: R.batido1 },
-    { id: 'b', name: 'Batido Fresa Miel: 30g whey fresa + 150ml leche prot + 100g yogur griego 0% + 80g fresas + 10g miel', kcal: 290, prot: 34, carbs: 28, grasa: 3, type: 'yogur' as const, recipe: R.batido2 },
-    { id: 'c', name: 'Batido Frutos Rojos: 30g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 295, prot: 32, carbs: 32, grasa: 3, type: 'normal' as const, recipe: R.batido3 },
-    { id: 'd', name: 'Batido Mango Coco: 30g whey vainilla + 200ml leche prot + 100g mango + 10g miel + canela', kcal: 300, prot: 30, carbs: 36, grasa: 3, type: 'normal' as const, recipe: R.batido4 },
+    { id: 'a', name: 'Batido Chocolate Plátano: 40g whey chocolate + 200ml leche prot + 1 plátano + 5g cacao + 80g arándanos', kcal: 430, prot: 40, carbs: 52, grasa: 5, type: 'normal' as const, recipe: R.batido1 },
+    { id: 'b', name: 'Batido Fresa Miel: 40g whey fresa + 200ml leche prot + 100g yogur griego 0% + 100g fresas + 10g miel', kcal: 400, prot: 42, carbs: 38, grasa: 4, type: 'yogur' as const, recipe: R.batido2 },
+    { id: 'c', name: 'Batido Frutos Rojos: 40g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel + 1 plátano', kcal: 430, prot: 38, carbs: 56, grasa: 4, type: 'normal' as const, recipe: R.batido3 },
+    { id: 'd', name: 'Batido Mango Coco: 40g whey vainilla + 200ml leche prot + 150g mango + 10g miel + canela', kcal: 420, prot: 36, carbs: 52, grasa: 4, type: 'normal' as const, recipe: R.batido4 },
   ],
 }
 
@@ -144,10 +144,10 @@ const cenaFuerza = {
   noteType: '' as const,
   note: 'Proteína alta, carbos bajos. Sin arroz ni pasta.',
   options: [
-    { id: 'a', name: `200g salmón (air fryer) + ${veg('ensalada')} + 15ml AOVE`, kcal: 510, prot: 42, carbs: 8, grasa: 32, type: 'airfryer' as const, recipe: R.afs },
-    { id: 'b', name: `150g pollo (air fryer) + ${veg('brócoli al vapor')} + 2 huevos plancha + 10ml AOVE + yogur straciatella (120g)`, kcal: 520, prot: 48, carbs: 10, grasa: 22, type: 'airfryer' as const, recipe: R.afc, comp: '+ yogur straciatella compensa los 50g menos de pollo' },
-    { id: 'c', name: 'Pizza de cottage (air fryer) + mozzarella light (60g) + atún (80g)', kcal: 620, prot: 58, carbs: 38, grasa: 22, type: 'airfryer' as const, recipe: R.pizza },
-    { id: 'd', name: `Tortilla (120ml claras + 2 huevos) + atún al natural (80g) + ${veg('champiñones')} + 10ml AOVE`, kcal: 500, prot: 42, carbs: 4, grasa: 28, type: 'normal' as const, recipe: R.tort },
+    { id: 'a', name: `250g salmón (air fryer) + ${veg('ensalada')} + 15ml AOVE`, kcal: 630, prot: 52, carbs: 8, grasa: 38, type: 'airfryer' as const, recipe: R.afs },
+    { id: 'b', name: `200g pollo (air fryer) + ${veg('brócoli al vapor')} + 2 huevos plancha + 10ml AOVE + yogur straciatella (120g)`, kcal: 620, prot: 58, carbs: 10, grasa: 26, type: 'airfryer' as const, recipe: R.afc, comp: '+ yogur straciatella compensa los 50g menos de pollo' },
+    { id: 'c', name: 'Pizza de cottage (air fryer) + mozzarella light (60g) + atún (120g)', kcal: 680, prot: 66, carbs: 38, grasa: 24, type: 'airfryer' as const, recipe: R.pizza },
+    { id: 'd', name: `Tortilla (150ml claras + 2 huevos) + atún al natural (100g) + ${veg('champiñones')} + 10ml AOVE`, kcal: 580, prot: 52, carbs: 4, grasa: 30, type: 'normal' as const, recipe: R.tort },
   ],
 }
 
