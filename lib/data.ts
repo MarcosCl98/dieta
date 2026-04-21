@@ -210,6 +210,7 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
             { id: 'c', name: 'Batido Frutos Rojos: 40g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 390, prot: 38, carbs: 40, grasa: 4, type: 'normal', recipe: R.batido3 },
             { id: 'd', name: '200g Skyr natural + 1 plátano + 10g miel + 2 huevos cocidos + 80g fresas', kcal: 420, prot: 38, carbs: 46, grasa: 8, type: 'yogur' },
             { id: 'e', name: '3 tostadas Oroweat + 120ml claras + 2 huevos revueltos + 60g pechuga de pavo loncheada + 1 naranja', kcal: 660, prot: 48, carbs: 62, grasa: 16, type: 'rapida', recipe: R.tort },
+            { id: 'f', name: 'Bol muesli: 2 yogures straciatella (240g) + 80g muesli chocolate negro Carrefour + 200ml leche prot desnatada + 1 plátano', kcal: 594, prot: 35, carbs: 88, grasa: 13, type: 'yogur' },
           ],
         },
         {
@@ -296,6 +297,7 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
             { id: 'c', name: 'Batido Frutos Rojos: 40g whey vainilla + 200ml leche prot + 80g arándanos + 80g fresas + 10g miel', kcal: 390, prot: 38, carbs: 40, grasa: 4, type: 'normal', recipe: R.batido3 },
             { id: 'd', name: 'Batido Mango Coco: 40g whey vainilla + 200ml leche prot + 100g mango + 10g miel + canela', kcal: 400, prot: 36, carbs: 44, grasa: 4, type: 'normal', recipe: R.batido4 },
             { id: 'e', name: '3 tostadas Oroweat + 120ml claras + 2 huevos revueltos + 60g pechuga de pavo + 1 naranja', kcal: 660, prot: 48, carbs: 62, grasa: 16, type: 'rapida', recipe: R.tort },
+            { id: 'f', name: 'Bol muesli: 2 yogures straciatella (240g) + 80g muesli chocolate negro Carrefour + 200ml leche prot desnatada + 1 plátano', kcal: 594, prot: 35, carbs: 88, grasa: 13, type: 'yogur' },
           ],
         },
         {
@@ -383,6 +385,7 @@ export const DIET_DATA: Record<DayType, Record<string, DayData>> = {
             { id: 'c', name: '2 tostadas Oroweat + 1/2 aguacate (70g) + 120ml claras + 1 huevo + arándanos (80g)', kcal: 540, prot: 32, carbs: 46, grasa: 22, type: 'normal' },
             { id: 'd', name: 'Bol: yogur straciatella (120g) + 200ml leche prot desnatada + 50g avena + arándanos (80g) + 10g miel', kcal: 470, prot: 28, carbs: 66, grasa: 6, type: 'yogur' },
             { id: 'e', name: 'Bocadillo: pan blanco (70g) + 60g jamón serrano + 1/4 aguacate + café leche prot', kcal: 470, prot: 34, carbs: 44, grasa: 18, type: 'rapida', recipe: R.boca },
+            { id: 'f', name: 'Bol muesli: 2 yogures straciatella (240g) + 60g muesli chocolate negro Carrefour + 200ml leche prot desnatada', kcal: 415, prot: 33, carbs: 52, grasa: 10, type: 'yogur' },
           ],
         },
         {
