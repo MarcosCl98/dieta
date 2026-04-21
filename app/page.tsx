@@ -125,6 +125,7 @@ export default function HomePage() {
 
   // History viewer
   const [historyDate, setHistoryDate] = useState<string | null>(null)
+  const [historyFrom, setHistoryFrom] = useState<'main' | 'profile'>('main')
   const [historyData, setHistoryData] = useState<{ log: { day_type: string; schedule: string; cheat_note: string | null; completed: boolean } | null; selections: { meal_id: string; option_id: string; kcal: number; prot: number; carbs: number; grasa: number }[] } | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
 
@@ -378,6 +379,7 @@ export default function HomePage() {
     setWeightEntries([])
     setHistoryDate(null)
     setHistoryData(null)
+    setHistoryFrom('main')
     setAppScreen('main')
     setShowWeightPrompt(false)
     setCheatMealData(null)
@@ -493,9 +495,10 @@ export default function HomePage() {
     }
   }
 
-  async function loadHistoryDay(iso: string) {
+  async function loadHistoryDay(iso: string, from: 'main' | 'profile' = 'main') {
     if (!userId || iso >= date) return // only past days
     setHistoryDate(iso)
+    setHistoryFrom(from)
     setHistoryData(null)
     setHistoryLoading(true)
     try {
@@ -807,7 +810,7 @@ export default function HomePage() {
                 return (
                   <button
                     key={iso}
-                    onClick={() => { if (isPast) { setAppScreen('main'); loadHistoryDay(iso) } }}
+                    onClick={() => { if (isPast) loadHistoryDay(iso, 'profile') }}
                     className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : isPartial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : isEmpty ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
                   >
                     {day}
@@ -850,8 +853,12 @@ export default function HomePage() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
           <div className="max-w-lg mx-auto flex items-center gap-3">
-            <button onClick={() => { setHistoryDate(null); setHistoryData(null) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-              <ChevronLeft size={16} />Volver
+            <button onClick={() => {
+              setHistoryDate(null)
+              setHistoryData(null)
+              if (historyFrom === 'profile') setAppScreen('profile')
+            }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              <ChevronLeft size={16} />{historyFrom === 'profile' ? 'Volver al perfil' : 'Volver'}
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize truncate">{hFormatted}</p>
