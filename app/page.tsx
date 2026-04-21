@@ -725,124 +725,6 @@ export default function HomePage() {
   )
 
   // ── PROFILE / USER SCREEN ──
-  if (appScreen === 'profile') {
-    const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weight_kg : null
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
-        <div className="max-w-lg mx-auto">
-          <button onClick={() => { setAppScreen('main'); setEditingPlan(false) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-            <ChevronLeft size={16} />Volver a comidas
-          </button>
-        </div>
-      </div>
-      <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
-          {/* Profile header */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full overflow-hidden shrink-0" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
-              <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{activeProfile.name}</h1>
-                {activeProfile.plan && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 mt-1">
-                    <p>{activeProfile.plan.sex === 'male' ? 'Hombre' : 'Mujer'} · {activeProfile.plan.age} años · {activeProfile.plan.heightCm} cm</p>
-                    <p>Peso registrado: {latestWeight ? `${latestWeight} kg` : `${activeProfile.plan.weightKg} kg (inicial)`}</p>
-                    <p>Objetivo: {activeProfile.plan.goal === 'gain' ? 'Ganar músculo' : activeProfile.plan.goal === 'loss' ? 'Perder grasa' : 'Mantener'}</p>
-                    <p>Meta diaria: {activeProfile.plan.targetKcal} kcal · {activeProfile.plan.protein}g prot</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <button onClick={() => setEditingPlan(p => !p)} className="mt-3 text-xs text-blue-500 hover:underline">
-              {editingPlan ? 'Cancelar edición' : 'Editar datos y objetivo'}
-            </button>
-          </div>
-
-          {/* Edit plan form */}
-          {editingPlan && (
-            <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-2xl p-5 shadow-sm space-y-4">
-              <h2 className="text-sm font-semibold text-white">Editar datos</h2>
-              <PlanFormFields form={planForm} setForm={setPlanForm} />
-              <button onClick={handleSavePlan} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Guardar cambios</button>
-            </div>
-          )}
-
-          {/* Weight chart */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evolución del peso</h2>
-              {weightEntries.length > 0 && (
-                <span className="text-xs text-gray-400">{weightEntries.length} registro{weightEntries.length !== 1 ? 's' : ''}</span>
-              )}
-            </div>
-            <WeightChart entries={weightEntries} />
-            {/* Manual weight entry */}
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Añadir registro de esta semana:</p>
-              <div className="flex gap-2">
-                <input value={weeklyWeightInput} onChange={e => setWeeklyWeightInput(e.target.value.replace(',', '.'))}
-                  placeholder="58.5 kg" type="number" step="0.1" inputMode="decimal"
-                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
-                <button onClick={handleSaveWeight} disabled={weightSaving || !weeklyWeightInput}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  {weightSaving ? '...' : 'Guardar'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Calendar in profile */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Historial del mes</h2>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}
-              </span>
-            </div>
-            <div className="grid grid-cols-7 gap-1.5 mb-2">
-              {weekdayLabels.map(l => <div key={l} className="text-[10px] text-center text-gray-400 font-medium">{l}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {calendarCells.map((day, idx) => {
-                if (!day) return <div key={`b${idx}`} className="h-9" />
-                const iso = `${month}-${String(day).padStart(2, '0')}`
-                const completed = completedDates.includes(iso)
-                const cheated = cheatDates.includes(iso)
-                const isToday = iso === date
-                const isPast = iso < date
-                const isOverKcal = isToday && current.kcal > computedTarget.kcal * 1.1
-                const hasLog = loggedDates.includes(iso)
-                const isPartial = isPast && hasLog && !completed && !cheated
-                const isEmpty = isPast && !hasLog && !completed && !cheated
-                return (
-                  <button
-                    key={iso}
-                    onClick={() => { if (isPast) loadHistoryDay(iso, 'profile') }}
-                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : isPartial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : isEmpty ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
-                  >
-                    {day}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3">
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Completado</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />Excepción</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-blue-200 inline-block" />Parcial</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 dark:bg-gray-700 inline-block" />Sin registrar</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />Kcal excedidas</span>
-            </div>
-          </div>
-
-          <button onClick={handleLogout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── HISTORY DAY MODAL ──
   if (historyDate) {
     const hFormatted = new Date(historyDate + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
     // Reconstruct what was eaten that day
@@ -1020,6 +902,126 @@ export default function HomePage() {
       </div>
     )
   }
+
+
+  if (appScreen === 'profile') {
+    const latestWeight = weightEntries.length > 0 ? weightEntries[weightEntries.length - 1].weight_kg : null
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="sticky top-0 z-20 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 px-4 pt-3 pb-3">
+        <div className="max-w-lg mx-auto">
+          <button onClick={() => { setAppScreen('main'); setEditingPlan(false) }} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+            <ChevronLeft size={16} />Volver a comidas
+          </button>
+        </div>
+      </div>
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
+          {/* Profile header */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden shrink-0" dangerouslySetInnerHTML={{ __html: AVATAR_SVGS[activeProfile.avatar] ?? '' }} />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{activeProfile.name}</h1>
+                {activeProfile.plan && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 mt-1">
+                    <p>{activeProfile.plan.sex === 'male' ? 'Hombre' : 'Mujer'} · {activeProfile.plan.age} años · {activeProfile.plan.heightCm} cm</p>
+                    <p>Peso registrado: {latestWeight ? `${latestWeight} kg` : `${activeProfile.plan.weightKg} kg (inicial)`}</p>
+                    <p>Objetivo: {activeProfile.plan.goal === 'gain' ? 'Ganar músculo' : activeProfile.plan.goal === 'loss' ? 'Perder grasa' : 'Mantener'}</p>
+                    <p>Meta diaria: {activeProfile.plan.targetKcal} kcal · {activeProfile.plan.protein}g prot</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={() => setEditingPlan(p => !p)} className="mt-3 text-xs text-blue-500 hover:underline">
+              {editingPlan ? 'Cancelar edición' : 'Editar datos y objetivo'}
+            </button>
+          </div>
+
+          {/* Edit plan form */}
+          {editingPlan && (
+            <div className="bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-2xl p-5 shadow-sm space-y-4">
+              <h2 className="text-sm font-semibold text-white">Editar datos</h2>
+              <PlanFormFields form={planForm} setForm={setPlanForm} />
+              <button onClick={handleSavePlan} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">Guardar cambios</button>
+            </div>
+          )}
+
+          {/* Weight chart */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evolución del peso</h2>
+              {weightEntries.length > 0 && (
+                <span className="text-xs text-gray-400">{weightEntries.length} registro{weightEntries.length !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+            <WeightChart entries={weightEntries} />
+            {/* Manual weight entry */}
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Añadir registro de esta semana:</p>
+              <div className="flex gap-2">
+                <input value={weeklyWeightInput} onChange={e => setWeeklyWeightInput(e.target.value.replace(',', '.'))}
+                  placeholder="58.5 kg" type="number" step="0.1" inputMode="decimal"
+                  className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+                <button onClick={handleSaveWeight} disabled={weightSaving || !weeklyWeightInput}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {weightSaving ? '...' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Calendar in profile */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Historial del mes</h2>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isTodayCompleted ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                Hoy: {isTodayCompleted ? 'completado' : `${selectedMeals}/${expectedMeals}`}
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5 mb-2">
+              {weekdayLabels.map(l => <div key={l} className="text-[10px] text-center text-gray-400 font-medium">{l}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {calendarCells.map((day, idx) => {
+                if (!day) return <div key={`b${idx}`} className="h-9" />
+                const iso = `${month}-${String(day).padStart(2, '0')}`
+                const completed = completedDates.includes(iso)
+                const cheated = cheatDates.includes(iso)
+                const isToday = iso === date
+                const isPast = iso < date
+                const isOverKcal = isToday && current.kcal > computedTarget.kcal * 1.1
+                const hasLog = loggedDates.includes(iso)
+                const isPartial = isPast && hasLog && !completed && !cheated
+                const isEmpty = isPast && !hasLog && !completed && !cheated
+                return (
+                  <button
+                    key={iso}
+                    onClick={() => { if (isPast) loadHistoryDay(iso, 'profile') }}
+                    className={`h-9 w-full rounded-lg text-xs flex items-center justify-center border transition-opacity ${isOverKcal ? 'bg-red-500 text-white border-red-500' : cheated ? 'bg-amber-500 text-white border-amber-500' : completed ? 'bg-emerald-500 text-white border-emerald-500' : isPartial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' : isEmpty ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700'} ${isToday ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''} ${isPast ? 'cursor-pointer active:opacity-70' : 'cursor-default'}`}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3">
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Completado</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />Excepción</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-blue-200 inline-block" />Parcial</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 dark:bg-gray-700 inline-block" />Sin registrar</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />Kcal excedidas</span>
+            </div>
+          </div>
+
+          <button onClick={handleLogout} className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── HISTORY DAY MODAL ──
 
   // ── MAIN SCREEN ──
   const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
