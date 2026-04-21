@@ -1017,7 +1017,7 @@ export default function HomePage() {
             </div>
           </div>
           <button onClick={handleChangeDayType}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 hover:border-gray-300 dark:hover:border-gray-600 transition-colors shrink-0">
+            className="text-xs text-red-400 hover:text-red-600 dark:hover:text-red-300 border border-red-200 dark:border-red-800 rounded-lg px-2.5 py-1.5 hover:border-red-300 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0">
             Cambiar
           </button>
         </div>
