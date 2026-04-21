@@ -20,23 +20,54 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 
   if (month) {
-    const { data, error } = await supabase
-      .from('daily_log')
-      .select('date, completed, cheat_note')
-      .eq('user_id', userId)
-      .gte('date', `${month}-01`)
-      .lt('date', (() => {
-        const [y, m] = month.split('-').map(Number)
-        const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
-        return `${next}-01`
-      })())
+    const nextMonth = (() => {
+      const [y, m] = month.split('-').map(Number)
+      const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+      return `${next}-01`
+    })()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    // Get logs and selections count for the month in parallel
+    const [logRes, selRes] = await Promise.all([
+      supabase
+        .from('daily_log')
+        .select('date, completed, cheat_note, day_type, schedule')
+        .eq('user_id', userId)
+        .gte('date', `${month}-01`)
+        .lt('date', nextMonth),
+      supabase
+        .from('meal_selections')
+        .select('date, meal_id')
+        .eq('user_id', userId)
+        .gte('date', `${month}-01`)
+        .lt('date', nextMonth),
+    ])
 
-    return NextResponse.json({
-      completedDates: (data ?? []).filter(r => r.completed).map(r => r.date),
-      cheatDates: (data ?? []).filter(r => Boolean(r.cheat_note)).map(r => r.date),
-    })
+    if (logRes.error) return NextResponse.json({ error: logRes.error.message }, { status: 500 })
+
+    // Count selections per date
+    const selCountByDate: Record<string, number> = {}
+    for (const s of selRes.data ?? []) {
+      selCountByDate[s.date] = (selCountByDate[s.date] ?? 0) + 1
+    }
+
+    // Expected meals per day type
+    const EXPECTED: Record<string, number> = {
+      'fuerza-tarde': 4, 'fuerza-manana': 4, 'cardio-main': 4, 'descanso-main': 4,
+    }
+
+    const completedDates: string[] = []
+    const cheatDates: string[] = []
+
+    for (const row of logRes.data ?? []) {
+      const key = `${row.day_type}-${row.schedule}`
+      const expected = EXPECTED[key] ?? 4
+      const actual = selCountByDate[row.date] ?? 0
+      // A day is truly completed only if all expected meals are selected
+      if (actual >= expected) completedDates.push(row.date)
+      if (row.cheat_note) cheatDates.push(row.date)
+    }
+
+    return NextResponse.json({ completedDates, cheatDates })
   }
 
   if (!date) return NextResponse.json({ error: 'Missing date' }, { status: 400 })
