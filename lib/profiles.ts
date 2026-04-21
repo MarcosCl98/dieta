@@ -1,4 +1,4 @@
-export type GoalType = 'loss' | 'gain' | 'maintain'
+export type GoalType = 'loss_slow' | 'loss_fast' | 'maintain_gain' | 'gain'
 export type SexType = 'male' | 'female'
 export type ActivityType = 'low' | 'medium' | 'high'
 export type IntensityType = 'light' | 'moderate' | 'hard'
@@ -106,19 +106,42 @@ export function computeNutritionPlan(input: UserPlanInput): UserPlan {
   const tdee = baseTdee + dailyExerciseKcal
 
   // ── Target kcal by goal ──
-  // Conservative: gain surplus is modest (lean gains), loss deficit not too aggressive
+  // All adjustments are conservative — better to underestimate and adjust
   const goalAdj: Record<GoalType, number> = {
-    loss: -350,      // ~0.4-0.5 kg/week loss — sustainable, preserves muscle
-    gain: +220,      // ~0.25 kg/week gain — lean bulk, minimizes fat
-    maintain: 0,
+    // PÉRDIDA GRADUAL: déficit moderado, sostenible meses.
+    // ~0.3-0.5 kg/semana. Preserva músculo, no agota.
+    loss_slow: -300,
+
+    // PÉRDIDA RÁPIDA: déficit agresivo, max 4-6 semanas (preveano).
+    // ~0.8-1 kg/semana. Proteína muy alta para frenar catabolismo.
+    // No sostenible más de 6-8 semanas.
+    loss_fast: -600,
+
+    // MANTENIMIENTO + MÚSCULO: superávit mínimo.
+    // Recomposición corporal: muy lento pero minimiza grasa ganada.
+    // Ideal para personas con poca prisa o que no quieren engordar.
+    maintain_gain: +100,
+
+    // VOLUMEN: superávit real para máxima ganancia muscular.
+    // ~0.25-0.35 kg/semana. Mínimo 6 meses para resultados notables.
+    // Algo de grasa inevitable — se corta después.
+    gain: +280,
   }
   const targetKcal = Math.max(1400, tdee + goalAdj[input.goal])
 
   // ── Macros ──
-  // Protein: high for muscle preservation, slightly more on gain
-  const proteinPerKg: Record<GoalType, number> = { loss: 2.2, gain: 2.0, maintain: 1.9 }
-  // Fat: floor at 0.8g/kg for hormonal health
-  const fatPerKg: Record<GoalType, number> = { loss: 0.85, gain: 1.0, maintain: 0.9 }
+  const proteinPerKg: Record<GoalType, number> = {
+    loss_slow: 2.2,    // Alta para preservar músculo en déficit
+    loss_fast: 2.5,    // Muy alta — déficit agresivo necesita más proteína
+    maintain_gain: 2.0, // Moderada-alta
+    gain: 1.9,          // Suficiente, no necesitas más en superávit
+  }
+  const fatPerKg: Record<GoalType, number> = {
+    loss_slow: 0.85,
+    loss_fast: 0.75,   // Bajo pero suficiente para hormonas
+    maintain_gain: 0.9,
+    gain: 1.0,
+  }
 
   const protein = weightKg * proteinPerKg[input.goal]
   const fat = weightKg * fatPerKg[input.goal]
