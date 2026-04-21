@@ -86,6 +86,9 @@ export default function HomePage() {
   // Day tracking state
   const [dayType, setDayType] = useState<DayType>('fuerza')
   const [schedule, setSchedule] = useState<ScheduleType>('tarde')
+  const [showDayPrompt, setShowDayPrompt] = useState(false)
+  const [dayPromptStep, setDayPromptStep] = useState<'type' | 'schedule'>('type')
+  const [dayPromptType, setDayPromptType] = useState<DayType>('fuerza')
   const [selections, setSelections] = useState<Record<string, Selection>>({})
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -165,12 +168,18 @@ export default function HomePage() {
           setDayType(data.log.day_type as DayType)
           setSchedule(data.log.schedule as ScheduleType)
           setCheatNote(data.log.cheat_note ?? '')
-          // Restore completedDates for today from the loaded log
           if (data.log.completed) {
             setCompletedDates(prev => Array.from(new Set([...prev, date])))
           }
           if (data.log.cheat_note) {
             setCheatDates(prev => Array.from(new Set([...prev, date])))
+          }
+        } else {
+          // No log for today — show day type prompt (only after 02:00)
+          const hour = new Date().getHours()
+          if (hour >= 2) {
+            setShowDayPrompt(true)
+            setDayPromptStep('type')
           }
         }
         if (data.selections?.length) {
@@ -250,7 +259,6 @@ export default function HomePage() {
     setSelections({})
     updateCompletedDatesForToday(false)
     saveDayLog(dt, schedule, false, cheatNote)
-    // Also clear meal_selections in DB for today so no ghost data
     if (ready && userId) {
       fetch('/api/selections/meal/clear', {
         method: 'POST',
@@ -259,6 +267,7 @@ export default function HomePage() {
       }).catch(() => {})
     }
   }
+
   function handleSchedule(sc: ScheduleType) {
     setSchedule(sc)
     setSelections({})
@@ -271,6 +280,19 @@ export default function HomePage() {
         body: JSON.stringify({ userId, date }),
       }).catch(() => {})
     }
+  }
+
+  function handleConfirmDayPrompt(dt: DayType, sc: ScheduleType) {
+    setDayType(dt)
+    setSchedule(sc)
+    setShowDayPrompt(false)
+    saveDayLog(dt, sc, false, cheatNote)
+  }
+
+  function handleChangeDayType() {
+    setDayPromptStep('type')
+    setDayPromptType(dayType)
+    setShowDayPrompt(true)
   }
 
   async function handleSelect(mealId: string, option: Option) {
@@ -883,6 +905,74 @@ export default function HomePage() {
   // ── FOOD SEARCH MODAL ──
   // (rendered as overlay over any screen)
 
+  // ── DAY TYPE PROMPT ──
+  if (showDayPrompt) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="max-w-sm mx-auto px-4 w-full space-y-4">
+          <div className="text-center space-y-1">
+            <p className="text-xs text-gray-400 capitalize">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {dayPromptStep === 'type' ? '¿Qué tipo de día es hoy?' : '¿A qué hora entrenas?'}
+            </h2>
+          </div>
+
+          {dayPromptStep === 'type' && (
+            <div className="space-y-3">
+              {([
+                { value: 'fuerza' as DayType, label: 'Día de fuerza', desc: 'Entreno con pesas', emoji: '🏋️', color: 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' },
+                { value: 'cardio' as DayType, label: 'Día de carrera', desc: 'Cardio / running', emoji: '🏃', color: 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' },
+                { value: 'descanso' as DayType, label: 'Día de descanso', desc: 'Sin entreno hoy', emoji: '😴', color: 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' },
+              ] as { value: DayType; label: string; desc: string; emoji: string; color: string }[]).map(opt => (
+                <button key={opt.value}
+                  onClick={() => {
+                    setDayPromptType(opt.value)
+                    if (opt.value === 'fuerza') {
+                      setDayPromptStep('schedule')
+                    } else {
+                      handleConfirmDayPrompt(opt.value, 'main')
+                    }
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl border-2 text-left transition-all ${opt.color}`}
+                >
+                  <span className="text-3xl shrink-0">{opt.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{opt.label}</p>
+                    <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {dayPromptStep === 'schedule' && (
+            <div className="space-y-3">
+              <button onClick={() => setDayPromptStep('type')}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1">
+                ← Volver
+              </button>
+              {([
+                { value: 'tarde' as ScheduleType, label: 'Entreno a las 15h', desc: 'Carbos en comida y post', emoji: '☀️' },
+                { value: 'manana' as ScheduleType, label: 'Primera hora', desc: 'Carbos en post y cena', emoji: '🌅' },
+              ] as { value: ScheduleType; label: string; desc: string; emoji: string }[]).map(opt => (
+                <button key={opt.value}
+                  onClick={() => handleConfirmDayPrompt(dayPromptType, opt.value)}
+                  className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-blue-300 dark:hover:border-blue-700 text-left transition-all"
+                >
+                  <span className="text-3xl shrink-0">{opt.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{opt.label}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // ── MAIN SCREEN ──
   const dateFormatted = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -908,7 +998,29 @@ export default function HomePage() {
 
       {/* Scrollable content */}
       <div className="max-w-lg mx-auto px-4 pt-4 pb-10 space-y-4">
-        <DaySelector dayType={dayType} schedule={schedule} onDayType={handleDayType} onSchedule={handleSchedule} />
+        {/* Day type summary — tap to change */}
+        <div className="flex items-center justify-between bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">
+              {dayType === 'fuerza' ? '🏋️' : dayType === 'cardio' ? '🏃' : '😴'}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {dayType === 'fuerza' ? 'Día de fuerza' : dayType === 'cardio' ? 'Día de carrera' : 'Día de descanso'}
+                {dayType === 'fuerza' && (
+                  <span className="text-xs font-normal text-gray-400 ml-1.5">
+                    · {schedule === 'tarde' ? 'Entreno 15h' : 'Primera hora'}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-gray-400 capitalize">{dateFormatted}</p>
+            </div>
+          </div>
+          <button onClick={handleChangeDayType}
+            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 hover:border-gray-300 dark:hover:border-gray-600 transition-colors shrink-0">
+            Cambiar
+          </button>
+        </div>
         <MacroBar current={current} target={computedTarget} />
 
         {/* Status indicator — only show once at least one meal is selected */}
