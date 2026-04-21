@@ -6,7 +6,7 @@ import { MacroBar } from '@/components/MacroBar'
 import { MealCard } from '@/components/MealCard'
 import { DaySelector } from '@/components/DaySelector'
 import { Timeline } from '@/components/Timeline'
-import { AVATAR_OPTIONS, AVATAR_SVGS, ActivityType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
+import { AVATAR_OPTIONS, AVATAR_SVGS, ActivityType, IntensityType, StepsType, computeNutritionPlan, GoalType, SexType } from '@/lib/profiles'
 import { scaleDayData } from '@/lib/scale'
 import { FoodSearchModal } from '@/components/FoodSearchModal'
 import { useProfiles } from '@/lib/useProfiles'
@@ -43,7 +43,11 @@ interface WeightEntry { date: string; weight_kg: number }
 
 const defaultPlanForm = {
   age: 0, sex: 'male' as SexType, heightCm: 0, weightKg: 0,
-  trainingDays: 4, activity: 'medium' as ActivityType, goal: 'gain' as GoalType,
+  trainingDays: 4, trainingMinutes: 60,
+  intensity: 'moderate' as IntensityType,
+  steps: 'medium' as StepsType,
+  activity: 'medium' as ActivityType,
+  goal: 'gain' as GoalType,
 }
 
 // Simple SVG line chart
@@ -259,6 +263,9 @@ export default function HomePage() {
         heightCm: activeProfile.plan.heightCm,
         weightKg: activeProfile.plan.weightKg,
         trainingDays: activeProfile.plan.trainingDays,
+        trainingMinutes: activeProfile.plan.trainingMinutes ?? 60,
+        intensity: (activeProfile.plan.intensity as IntensityType) ?? 'moderate',
+        steps: (activeProfile.plan.steps as StepsType) ?? 'medium',
         activity: activeProfile.plan.activity,
         goal: activeProfile.plan.goal,
       })
@@ -1188,50 +1195,70 @@ export default function HomePage() {
 
 // ── PLAN FORM SUBCOMPONENT ──
 function PlanFormFields({ form, setForm }: { form: typeof defaultPlanForm; setForm: React.Dispatch<React.SetStateAction<typeof defaultPlanForm>> }) {
+  const inp = "mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"
+  const sel = "mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white"
+  const lbl = "text-xs text-gray-300"
   return (
     <div className="space-y-3">
+      {/* Row 1: basics */}
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-white">
-          Edad
-          <input type="number" min="1" value={form.age || ''} onChange={e => setForm(p => ({ ...p, age: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
+        <label className={lbl}>Edad
+          <input type="number" min="1" value={form.age || ''} onChange={e => setForm(p => ({ ...p, age: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className={inp} />
         </label>
-        <label className="text-xs text-white">
-          Estatura (cm)
-          <input type="number" min="1" value={form.heightCm || ''} onChange={e => setForm(p => ({ ...p, heightCm: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-        </label>
-        <label className="text-xs text-white">
-          Peso actual (kg)
-          <input type="number" min="1" step="0.1" value={form.weightKg || ''} onChange={e => setForm(p => ({ ...p, weightKg: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-        </label>
-        <label className="text-xs text-white">
-          Días entreno/semana
-          <input type="number" min="0" max="7" value={form.trainingDays === 0 ? '' : form.trainingDays} onChange={e => setForm(p => ({ ...p, trainingDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white" />
-        </label>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <label className="text-xs text-white">
-          Sexo
-          <select value={form.sex} onChange={e => setForm(p => ({ ...p, sex: e.target.value as SexType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
+        <label className={lbl}>Sexo
+          <select value={form.sex} onChange={e => setForm(p => ({ ...p, sex: e.target.value as SexType }))} className={sel}>
             <option value="male">Hombre</option><option value="female">Mujer</option>
           </select>
         </label>
-        <label className="text-xs text-white">
-          Actividad
-          <select value={form.activity} onChange={e => setForm(p => ({ ...p, activity: e.target.value as ActivityType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
-            <option value="low">Baja</option><option value="medium">Media</option><option value="high">Alta</option>
-          </select>
+        <label className={lbl}>Estatura (cm)
+          <input type="number" min="1" value={form.heightCm || ''} onChange={e => setForm(p => ({ ...p, heightCm: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className={inp} />
         </label>
-        <label className="text-xs text-white">
-          Objetivo
-          <select value={form.goal} onChange={e => setForm(p => ({ ...p, goal: e.target.value as GoalType }))} className="mt-1 w-full rounded-xl border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white">
-            <option value="loss">Perder grasa</option><option value="gain">Ganar músculo</option><option value="maintain">Mantener</option>
+        <label className={lbl}>Peso actual (kg)
+          <input type="number" min="1" step="0.1" value={form.weightKg || ''} onChange={e => setForm(p => ({ ...p, weightKg: e.target.value === '' ? 0 : parseFloat(e.target.value) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className={inp} />
+        </label>
+      </div>
+
+      {/* Row 2: training */}
+      <div className="grid grid-cols-3 gap-2">
+        <label className={lbl}>Días/semana
+          <input type="number" min="0" max="7" value={form.trainingDays === 0 ? '' : form.trainingDays} onChange={e => setForm(p => ({ ...p, trainingDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) }))} onFocus={e => { if (e.target.value === '0') e.target.select() }} className={inp} />
+        </label>
+        <label className={lbl}>Duración (min)
+          <input type="number" min="20" max="120" step="5" value={form.trainingMinutes || ''} onChange={e => setForm(p => ({ ...p, trainingMinutes: e.target.value === '' ? 60 : parseInt(e.target.value, 10) }))} onFocus={e => e.target.select()} className={inp} />
+        </label>
+        <label className={lbl}>Intensidad
+          <select value={form.intensity} onChange={e => setForm(p => ({ ...p, intensity: e.target.value as IntensityType }))} className={sel}>
+            <option value="light">Suave</option>
+            <option value="moderate">Moderada</option>
+            <option value="hard">Fuerte</option>
           </select>
         </label>
       </div>
-      <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2 text-[11px] text-gray-300 leading-relaxed space-y-0.5">
-        <p><span className="font-semibold text-white">Baja:</span> vida sedentaria o 0-2 entrenos/semana.</p>
-        <p><span className="font-semibold text-white">Media:</span> 3-4 entrenos/semana y actividad normal.</p>
-        <p><span className="font-semibold text-white">Alta:</span> 5-7 entrenos/semana o trabajo físico.</p>
+
+      {/* Row 3: lifestyle */}
+      <div className="grid grid-cols-2 gap-2">
+        <label className={lbl}>Pasos diarios
+          <select value={form.steps} onChange={e => setForm(p => ({ ...p, steps: e.target.value as StepsType }))} className={sel}>
+            <option value="low">Menos de 6.000</option>
+            <option value="medium">6.000 – 10.000</option>
+            <option value="high">Más de 10.000</option>
+          </select>
+        </label>
+        <label className={lbl}>Objetivo
+          <select value={form.goal} onChange={e => setForm(p => ({ ...p, goal: e.target.value as GoalType }))} className={sel}>
+            <option value="loss">Perder grasa</option>
+            <option value="gain">Ganar músculo</option>
+            <option value="maintain">Mantener</option>
+          </select>
+        </label>
+      </div>
+
+      {/* Info */}
+      <div className="rounded-xl bg-gray-800/70 border border-gray-700 px-3 py-2.5 text-[11px] text-gray-300 leading-relaxed space-y-1">
+        <p><span className="font-semibold text-white">Intensidad suave:</span> máquinas, ritmo cómodo, pocas series al fallo.</p>
+        <p><span className="font-semibold text-white">Moderada:</span> compuestos con esfuerzo real, RPE 7-8.</p>
+        <p><span className="font-semibold text-white">Fuerte:</span> cerca del fallo, HIIT, sesiones exigentes.</p>
+        <p className="text-gray-400 pt-0.5">El algoritmo aplica sesgo conservador — mejor quedarse corto y ajustar.</p>
       </div>
     </div>
   )
